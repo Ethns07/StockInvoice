@@ -38,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const search = req.query.search as string || "";
-      
+
       const result = await storage.getProducts(page, limit, search);
       res.json(result);
     } catch (error) {
@@ -59,13 +59,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/products/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const product = await storage.getProduct(id);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json(product);
     } catch (error) {
       console.error("Error fetching product:", error);
@@ -89,14 +89,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/products/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const productData = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(id, productData);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json(product);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -109,13 +109,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/products/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.deleteProduct(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const search = req.query.search as string || "";
-      
+
       const result = await storage.getCustomers(page, limit, search);
       res.json(result);
     } catch (error) {
@@ -140,13 +140,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/customers/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const customer = await storage.getCustomer(id);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json(customer);
     } catch (error) {
       console.error("Error fetching customer:", error);
@@ -170,14 +170,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/customers/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const customerData = insertCustomerSchema.partial().parse(req.body);
       const customer = await storage.updateCustomer(id, customerData);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json(customer);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -190,13 +190,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/customers/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.deleteCustomer(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting customer:", error);
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 10;
       const search = req.query.search as string || "";
       const status = req.query.status as string || "";
-      
+
       const result = await storage.getInvoices(page, limit, search, status);
       res.json(result);
     } catch (error) {
@@ -232,13 +232,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/invoices/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const invoice = await storage.getInvoice(id);
-      
+
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      
+
       res.json(invoice);
     } catch (error) {
       console.error("Error fetching invoice:", error);
@@ -250,12 +250,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { invoice: invoiceData, items } = req.body;
-      
+
       const validatedInvoice = insertInvoiceSchema.parse({
         ...invoiceData,
         userId
       });
-      
+
       const invoice = await storage.createInvoice(validatedInvoice, items);
       res.status(201).json(invoice);
     } catch (error) {
@@ -269,19 +269,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/invoices/:id/status', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { status } = req.body;
-      
+
       if (!['pending', 'paid', 'overdue', 'cancelled'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const success = await storage.updateInvoiceStatus(id, status);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      
+
       res.json({ message: "Invoice status updated successfully" });
     } catch (error) {
       console.error("Error updating invoice status:", error);
@@ -291,13 +291,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/invoices/:id', isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.deleteInvoice(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting invoice:", error);

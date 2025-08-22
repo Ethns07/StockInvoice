@@ -1,32 +1,13 @@
-import {
-  users,
-  products,
-  customers,
-  invoices,
-  invoiceItems,
-  type User,
-  type UpsertUser,
-  type Product,
-  type InsertProduct,
-  type Customer,
-  type InsertCustomer,
-  type Invoice,
-  type InsertInvoice,
-  type InvoiceItem,
-  type InsertInvoiceItem,
-  type InvoiceWithCustomer,
-  type ProductWithStock,
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, desc, asc, ilike, and, sql, count } from "drizzle-orm";
 
 import {
   Product as ProductModel,
   Customer as CustomerModel,
   Invoice as InvoiceModel,
+  User as UserModel,
   IProduct,
   ICustomer,
   IInvoice,
+  IUser,
   InsertProduct as InsertProductSchema,
   InsertCustomer as InsertCustomerSchema,
   InsertInvoice as InsertInvoiceSchema,
@@ -36,365 +17,374 @@ import { Types } from 'mongoose';
 
 export interface IStorage {
   // User operations (required for Replit Auth)
-  getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUser(id: string): Promise<IUser | undefined>;
+  upsertUser(user: Partial<IUser>): Promise<IUser>;
 
   // Product operations
-  getProducts(page?: number, limit?: number, search?: string): Promise<{ products: ProductWithStock[]; total: number }>;
-  getProduct(id: number): Promise<Product | undefined>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined>;
-  deleteProduct(id: number): Promise<boolean>;
-  updateStock(productId: number, quantity: number): Promise<boolean>;
-  getLowStockProducts(): Promise<ProductWithStock[]>;
+  getProducts(page?: number, limit?: number, search?: string): Promise<{ products: ProductWithStockSchema[]; total: number }>;
+  getProduct(id: string): Promise<IProduct | undefined>;
+  createProduct(product: InsertProductSchema): Promise<IProduct>;
+  updateProduct(id: string, product: Partial<InsertProductSchema>): Promise<IProduct | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+  updateStock(productId: string, quantity: number): Promise<boolean>;
+  getLowStockProducts(): Promise<ProductWithStockSchema[]>;
 
   // Customer operations
-  getCustomers(page?: number, limit?: number, search?: string): Promise<{ customers: Customer[]; total: number }>;
-  getCustomer(id: number): Promise<Customer | undefined>;
-  createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
-  deleteCustomer(id: number): Promise<boolean>;
+  getCustomers(page?: number, limit?: number, search?: string): Promise<{ customers: ICustomer[]; total: number }>;
+  getCustomer(id: string): Promise<ICustomer | undefined>;
+  createCustomer(customer: InsertCustomerSchema): Promise<ICustomer>;
+  updateCustomer(id: string, customer: Partial<InsertCustomerSchema>): Promise<ICustomer | undefined>;
+  deleteCustomer(id: string): Promise<boolean>;
 
   // Invoice operations
-  getInvoices(page?: number, limit?: number, search?: string, status?: string): Promise<{ invoices: InvoiceWithCustomer[]; total: number }>;
-  getInvoice(id: number): Promise<InvoiceWithCustomer | undefined>;
-  createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<InvoiceWithCustomer>;
-  updateInvoiceStatus(id: number, status: string): Promise<boolean>;
-  deleteInvoice(id: number): Promise<boolean>;
-  getNextInvoiceNumber(): Promise<string>;
+  getInvoices(page?: number, limit?: number, search?: string): Promise<{ invoices: any[]; total: number }>;
+  getInvoice(id: string): Promise<any | undefined>;
+  createInvoice(invoice: InsertInvoiceSchema): Promise<IInvoice>;
+  updateInvoice(id: string, invoice: Partial<InsertInvoiceSchema>): Promise<IInvoice | undefined>;
+  deleteInvoice(id: string): Promise<boolean>;
 
   // Dashboard stats
-  getDashboardStats(): Promise<{
-    totalProducts: number;
-    lowStockItems: number;
-    totalRevenue: string;
-    pendingInvoices: number;
-  }>;
+  getDashboardStats(): Promise<any>;
 }
 
-class DatabaseStorage implements IStorage {
-  // User operations (required for Replit Auth)
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+class MongoStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<IUser | undefined> {
+    try {
+      const user = await UserModel.findById(id);
+      return user || undefined;
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return undefined;
+    }
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+  async upsertUser(user: Partial<IUser>): Promise<IUser> {
+    try {
+      const existingUser = await UserModel.findById(user._id);
+      if (existingUser) {
+        Object.assign(existingUser, user, { updatedAt: new Date() });
+        await existingUser.save();
+        return existingUser;
+      } else {
+        const newUser = new UserModel({
+          ...user,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        await newUser.save();
+        return newUser;
+      }
+    } catch (error) {
+      console.error('Error upserting user:', error);
+      throw error;
+    }
   }
 
   // Product operations
-  async getProducts(page = 1, limit = 10, search = ""): Promise<{ products: ProductWithStock[]; total: number }> {
-    const offset = (page - 1) * limit;
+  async getProducts(page = 1, limit = 10, search = ""): Promise<{ products: ProductWithStockSchema[]; total: number }> {
+    try {
+      const offset = (page - 1) * limit;
+      const searchQuery = search ? { name: { $regex: search, $options: 'i' } } : {};
+      
+      const [products, total] = await Promise.all([
+        ProductModel.find(searchQuery)
+          .sort({ createdAt: -1 })
+          .skip(offset)
+          .limit(limit)
+          .lean(),
+        ProductModel.countDocuments(searchQuery)
+      ]);
 
-    const whereClause = search
-      ? ilike(products.name, `%${search}%`)
-      : undefined;
+      const productsWithStock = products.map(product => ({
+        ...product,
+        stockStatus: product.stock <= 0 ? "out_of_stock" as const :
+                    product.stock <= product.minStock ? "low_stock" as const :
+                    "in_stock" as const
+      }));
 
-    const [productsResult, totalResult] = await Promise.all([
-      db
-        .select()
-        .from(products)
-        .where(whereClause)
-        .orderBy(desc(products.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ count: count() })
-        .from(products)
-        .where(whereClause)
-    ]);
-
-    const productsWithStock = productsResult.map(product => ({
-      ...product,
-      stockStatus: product.stock <= 0 ? "out_of_stock" as const
-        : product.stock <= (product.minStock || 10) ? "low_stock" as const
-        : "in_stock" as const
-    }));
-
-    return {
-      products: productsWithStock,
-      total: totalResult[0].count
-    };
+      return { products: productsWithStock, total };
+    } catch (error) {
+      console.error('Error getting products:', error);
+      throw error;
+    }
   }
 
-  async getProduct(id: number): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.id, id));
-    return product;
+  async getProduct(id: string): Promise<IProduct | undefined> {
+    try {
+      const product = await ProductModel.findById(id);
+      return product || undefined;
+    } catch (error) {
+      console.error('Error getting product:', error);
+      return undefined;
+    }
   }
 
-  async createProduct(product: InsertProduct): Promise<Product> {
-    const [newProduct] = await db.insert(products).values(product).returning();
-    return newProduct;
-  }
-
-  async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined> {
-    const [updatedProduct] = await db
-      .update(products)
-      .set({ ...product, updatedAt: new Date() })
-      .where(eq(products.id, id))
-      .returning();
-    return updatedProduct;
-  }
-
-  async deleteProduct(id: number): Promise<boolean> {
-    const result = await db.delete(products).where(eq(products.id, id));
-    return result.rowCount! > 0;
-  }
-
-  async updateStock(productId: number, quantity: number): Promise<boolean> {
-    const result = await db
-      .update(products)
-      .set({
-        stock: sql`${products.stock} + ${quantity}`,
+  async createProduct(product: InsertProductSchema): Promise<IProduct> {
+    try {
+      const newProduct = new ProductModel({
+        ...product,
+        createdAt: new Date(),
         updatedAt: new Date()
-      })
-      .where(eq(products.id, productId));
-    return result.rowCount! > 0;
+      });
+      await newProduct.save();
+      return newProduct;
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
   }
 
-  async getLowStockProducts(): Promise<ProductWithStock[]> {
-    const lowStockProducts = await db
-      .select()
-      .from(products)
-      .where(sql`${products.stock} <= ${products.minStock}`)
-      .orderBy(asc(products.stock));
+  async updateProduct(id: string, product: Partial<InsertProductSchema>): Promise<IProduct | undefined> {
+    try {
+      const updatedProduct = await ProductModel.findByIdAndUpdate(
+        id,
+        { ...product, updatedAt: new Date() },
+        { new: true }
+      );
+      return updatedProduct || undefined;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      return undefined;
+    }
+  }
 
-    return lowStockProducts.map(product => ({
-      ...product,
-      stockStatus: product.stock <= 0 ? "out_of_stock" as const : "low_stock" as const
-    }));
+  async deleteProduct(id: string): Promise<boolean> {
+    try {
+      const result = await ProductModel.findByIdAndDelete(id);
+      return !!result;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      return false;
+    }
+  }
+
+  async updateStock(productId: string, quantity: number): Promise<boolean> {
+    try {
+      const product = await ProductModel.findById(productId);
+      if (!product) return false;
+      
+      product.stock += quantity;
+      product.updatedAt = new Date();
+      await product.save();
+      return true;
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      return false;
+    }
+  }
+
+  async getLowStockProducts(): Promise<ProductWithStockSchema[]> {
+    try {
+      const products = await ProductModel.find({
+        $expr: { $lte: ["$stock", "$minStock"] }
+      }).lean();
+
+      return products.map(product => ({
+        ...product,
+        stockStatus: product.stock <= 0 ? "out_of_stock" as const : "low_stock" as const
+      }));
+    } catch (error) {
+      console.error('Error getting low stock products:', error);
+      return [];
+    }
   }
 
   // Customer operations
-  async getCustomers(page = 1, limit = 10, search = ""): Promise<{ customers: Customer[]; total: number }> {
-    const offset = (page - 1) * limit;
+  async getCustomers(page = 1, limit = 10, search = ""): Promise<{ customers: ICustomer[]; total: number }> {
+    try {
+      const offset = (page - 1) * limit;
+      const searchQuery = search ? { name: { $regex: search, $options: 'i' } } : {};
+      
+      const [customers, total] = await Promise.all([
+        CustomerModel.find(searchQuery)
+          .sort({ createdAt: -1 })
+          .skip(offset)
+          .limit(limit)
+          .lean(),
+        CustomerModel.countDocuments(searchQuery)
+      ]);
 
-    const whereClause = search
-      ? ilike(customers.name, `%${search}%`)
-      : undefined;
-
-    const [customersResult, totalResult] = await Promise.all([
-      db
-        .select()
-        .from(customers)
-        .where(whereClause)
-        .orderBy(desc(customers.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ count: count() })
-        .from(customers)
-        .where(whereClause)
-    ]);
-
-    return {
-      customers: customersResult,
-      total: totalResult[0].count
-    };
+      return { customers, total };
+    } catch (error) {
+      console.error('Error getting customers:', error);
+      throw error;
+    }
   }
 
-  async getCustomer(id: number): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
-    return customer;
+  async getCustomer(id: string): Promise<ICustomer | undefined> {
+    try {
+      const customer = await CustomerModel.findById(id);
+      return customer || undefined;
+    } catch (error) {
+      console.error('Error getting customer:', error);
+      return undefined;
+    }
   }
 
-  async createCustomer(customer: InsertCustomer): Promise<Customer> {
-    const [newCustomer] = await db.insert(customers).values(customer).returning();
-    return newCustomer;
+  async createCustomer(customer: InsertCustomerSchema): Promise<ICustomer> {
+    try {
+      const newCustomer = new CustomerModel({
+        ...customer,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      await newCustomer.save();
+      return newCustomer;
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      throw error;
+    }
   }
 
-  async updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const [updatedCustomer] = await db
-      .update(customers)
-      .set({ ...customer, updatedAt: new Date() })
-      .where(eq(customers.id, id))
-      .returning();
-    return updatedCustomer;
+  async updateCustomer(id: string, customer: Partial<InsertCustomerSchema>): Promise<ICustomer | undefined> {
+    try {
+      const updatedCustomer = await CustomerModel.findByIdAndUpdate(
+        id,
+        { ...customer, updatedAt: new Date() },
+        { new: true }
+      );
+      return updatedCustomer || undefined;
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      return undefined;
+    }
   }
 
-  async deleteCustomer(id: number): Promise<boolean> {
-    const result = await db.delete(customers).where(eq(customers.id, id));
-    return result.rowCount! > 0;
+  async deleteCustomer(id: string): Promise<boolean> {
+    try {
+      const result = await CustomerModel.findByIdAndDelete(id);
+      return !!result;
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      return false;
+    }
   }
 
   // Invoice operations
-  async getInvoices(page = 1, limit = 10, search = "", status = ""): Promise<{ invoices: InvoiceWithCustomer[]; total: number }> {
-    const offset = (page - 1) * limit;
+  async getInvoices(page = 1, limit = 10, search = ""): Promise<{ invoices: any[]; total: number }> {
+    try {
+      const offset = (page - 1) * limit;
+      const searchQuery = search ? { invoiceNumber: { $regex: search, $options: 'i' } } : {};
+      
+      const [invoices, total] = await Promise.all([
+        InvoiceModel.find(searchQuery)
+          .populate('customerId', 'name email')
+          .populate('items.productId', 'name sku')
+          .sort({ createdAt: -1 })
+          .skip(offset)
+          .limit(limit)
+          .lean(),
+        InvoiceModel.countDocuments(searchQuery)
+      ]);
 
-    const whereConditions = [];
-    if (search) {
-      whereConditions.push(ilike(invoices.invoiceNumber, `%${search}%`));
+      return { invoices, total };
+    } catch (error) {
+      console.error('Error getting invoices:', error);
+      throw error;
     }
-    if (status) {
-      whereConditions.push(eq(invoices.status, status));
+  }
+
+  async getInvoice(id: string): Promise<any | undefined> {
+    try {
+      const invoice = await InvoiceModel.findById(id)
+        .populate('customerId')
+        .populate('items.productId');
+      return invoice || undefined;
+    } catch (error) {
+      console.error('Error getting invoice:', error);
+      return undefined;
     }
+  }
 
-    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+  async createInvoice(invoice: InsertInvoiceSchema): Promise<IInvoice> {
+    try {
+      const newInvoice = new InvoiceModel({
+        ...invoice,
+        customerId: new Types.ObjectId(invoice.customerId),
+        items: invoice.items.map(item => ({
+          ...item,
+          productId: new Types.ObjectId(item.productId)
+        })),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      await newInvoice.save();
+      return newInvoice;
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      throw error;
+    }
+  }
 
-    const [invoicesResult, totalResult] = await Promise.all([
-      db
-        .select({
-          invoice: invoices,
-          customer: customers,
+  async updateInvoice(id: string, invoice: Partial<InsertInvoiceSchema>): Promise<IInvoice | undefined> {
+    try {
+      const updateData = { ...invoice, updatedAt: new Date() };
+      if (invoice.customerId) {
+        updateData.customerId = new Types.ObjectId(invoice.customerId);
+      }
+      if (invoice.items) {
+        updateData.items = invoice.items.map(item => ({
+          ...item,
+          productId: new Types.ObjectId(item.productId)
+        }));
+      }
+
+      const updatedInvoice = await InvoiceModel.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true }
+      );
+      return updatedInvoice || undefined;
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      return undefined;
+    }
+  }
+
+  async deleteInvoice(id: string): Promise<boolean> {
+    try {
+      const result = await InvoiceModel.findByIdAndDelete(id);
+      return !!result;
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      return false;
+    }
+  }
+
+  async getDashboardStats(): Promise<any> {
+    try {
+      const [
+        totalProducts,
+        totalCustomers,
+        totalInvoices,
+        totalRevenue,
+        lowStockCount
+      ] = await Promise.all([
+        ProductModel.countDocuments(),
+        CustomerModel.countDocuments(),
+        InvoiceModel.countDocuments(),
+        InvoiceModel.aggregate([
+          { $match: { status: 'paid' } },
+          { $group: { _id: null, total: { $sum: '$total' } } }
+        ]),
+        ProductModel.countDocuments({
+          $expr: { $lte: ["$stock", "$minStock"] }
         })
-        .from(invoices)
-        .leftJoin(customers, eq(invoices.customerId, customers.id))
-        .where(whereClause)
-        .orderBy(desc(invoices.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ count: count() })
-        .from(invoices)
-        .where(whereClause)
-    ]);
+      ]);
 
-    const invoicesWithItems = await Promise.all(
-      invoicesResult.map(async (row) => {
-        const items = await db
-          .select({
-            invoiceItem: invoiceItems,
-            product: products,
-          })
-          .from(invoiceItems)
-          .leftJoin(products, eq(invoiceItems.productId, products.id))
-          .where(eq(invoiceItems.invoiceId, row.invoice.id));
-
-        return {
-          ...row.invoice,
-          customer: row.customer!,
-          items: items.map(item => ({
-            ...item.invoiceItem,
-            product: item.product!,
-          })),
-        };
-      })
-    );
-
-    return {
-      invoices: invoicesWithItems,
-      total: totalResult[0].count
-    };
-  }
-
-  async getInvoice(id: number): Promise<InvoiceWithCustomer | undefined> {
-    const [invoiceRow] = await db
-      .select({
-        invoice: invoices,
-        customer: customers,
-      })
-      .from(invoices)
-      .leftJoin(customers, eq(invoices.customerId, customers.id))
-      .where(eq(invoices.id, id));
-
-    if (!invoiceRow) return undefined;
-
-    const items = await db
-      .select({
-        invoiceItem: invoiceItems,
-        product: products,
-      })
-      .from(invoiceItems)
-      .leftJoin(products, eq(invoiceItems.productId, products.id))
-      .where(eq(invoiceItems.invoiceId, id));
-
-    return {
-      ...invoiceRow.invoice,
-      customer: invoiceRow.customer!,
-      items: items.map(item => ({
-        ...item.invoiceItem,
-        product: item.product!,
-      })),
-    };
-  }
-
-  async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<InvoiceWithCustomer> {
-    const [newInvoice] = await db.insert(invoices).values(invoice).returning();
-
-    const invoiceItemsWithInvoiceId = items.map(item => ({
-      ...item,
-      invoiceId: newInvoice.id,
-    }));
-
-    await db.insert(invoiceItems).values(invoiceItemsWithInvoiceId);
-
-    // Update stock for each product
-    for (const item of items) {
-      await this.updateStock(item.productId, -item.quantity);
+      return {
+        totalProducts,
+        totalCustomers,
+        totalInvoices,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        lowStockCount
+      };
+    } catch (error) {
+      console.error('Error getting dashboard stats:', error);
+      throw error;
     }
-
-    const result = await this.getInvoice(newInvoice.id);
-    return result!;
-  }
-
-  async updateInvoiceStatus(id: number, status: string): Promise<boolean> {
-    const result = await db
-      .update(invoices)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(invoices.id, id));
-    return result.rowCount! > 0;
-  }
-
-  async deleteInvoice(id: number): Promise<boolean> {
-    // Delete invoice items first
-    await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));
-
-    // Delete invoice
-    const result = await db.delete(invoices).where(eq(invoices.id, id));
-    return result.rowCount! > 0;
-  }
-
-  async getNextInvoiceNumber(): Promise<string> {
-    const year = new Date().getFullYear();
-    const [lastInvoice] = await db
-      .select()
-      .from(invoices)
-      .where(ilike(invoices.invoiceNumber, `INV-${year}-%`))
-      .orderBy(desc(invoices.invoiceNumber))
-      .limit(1);
-
-    if (!lastInvoice) {
-      return `INV-${year}-001`;
-    }
-
-    const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-')[2]);
-    const nextNumber = lastNumber + 1;
-    return `INV-${year}-${nextNumber.toString().padStart(3, '0')}`;
-  }
-
-  // Dashboard stats
-  async getDashboardStats(): Promise<{
-    totalProducts: number;
-    lowStockItems: number;
-    totalRevenue: string;
-    pendingInvoices: number;
-  }> {
-    const [productsCount, lowStockCount, revenueSum, pendingCount] = await Promise.all([
-      db.select({ count: count() }).from(products),
-      db.select({ count: count() }).from(products).where(sql`${products.stock} <= ${products.minStock}`),
-      db.select({ sum: sql<string>`COALESCE(SUM(${invoices.total}), 0)` }).from(invoices).where(eq(invoices.status, 'paid')),
-      db.select({ count: count() }).from(invoices).where(eq(invoices.status, 'pending')),
-    ]);
-
-    return {
-      totalProducts: productsCount[0].count,
-      lowStockItems: lowStockCount[0].count,
-      totalRevenue: revenueSum[0].sum || "0",
-      pendingInvoices: pendingCount[0].count,
-    };
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MongoStorage();
