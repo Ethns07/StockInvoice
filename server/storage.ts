@@ -1,432 +1,382 @@
+// In-memory storage implementation
+import { insertProductSchema, insertCustomerSchema, insertInvoiceSchema } from "@shared/schema";
 
-import {
-  Product as ProductModel,
-  Customer as CustomerModel,
-  Invoice as InvoiceModel,
-  User as UserModel,
-  IProduct,
-  ICustomer,
-  IInvoice,
-  IUser,
-  InsertProduct as InsertProductSchema,
-  InsertCustomer as InsertCustomerSchema,
-  InsertInvoice as InsertInvoiceSchema,
-  ProductWithStock as ProductWithStockSchema,
-} from '@shared/schema';
-import { Types } from 'mongoose';
-
-export interface IStorage {
-  // User operations (required for Replit Auth)
-  getUser(id: string): Promise<IUser | undefined>;
-  upsertUser(user: Partial<IUser>): Promise<IUser>;
-
-  // Product operations
-  getProducts(page?: number, limit?: number, search?: string): Promise<{ products: ProductWithStockSchema[]; total: number }>;
-  getProduct(id: string): Promise<IProduct | undefined>;
-  createProduct(product: InsertProductSchema): Promise<IProduct>;
-  updateProduct(id: string, product: Partial<InsertProductSchema>): Promise<IProduct | undefined>;
-  deleteProduct(id: string): Promise<boolean>;
-  updateStock(productId: string, quantity: number): Promise<boolean>;
-  getLowStockProducts(): Promise<ProductWithStockSchema[]>;
-
-  // Customer operations
-  getCustomers(page?: number, limit?: number, search?: string): Promise<{ customers: ICustomer[]; total: number }>;
-  getCustomer(id: string): Promise<ICustomer | undefined>;
-  createCustomer(customer: InsertCustomerSchema): Promise<ICustomer>;
-  updateCustomer(id: string, customer: Partial<InsertCustomerSchema>): Promise<ICustomer | undefined>;
-  deleteCustomer(id: string): Promise<boolean>;
-
-  // Invoice operations
-  getInvoices(page?: number, limit?: number, search?: string): Promise<{ invoices: any[]; total: number }>;
-  getInvoice(id: string): Promise<any | undefined>;
-  createInvoice(invoice: InsertInvoiceSchema): Promise<IInvoice>;
-  updateInvoice(id: string, invoice: Partial<InsertInvoiceSchema>): Promise<IInvoice | undefined>;
-  deleteInvoice(id: string): Promise<boolean>;
-
-  // Dashboard stats
-  getDashboardStats(): Promise<any>;
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  sku: string;
+  category?: string;
+  stock: number;
+  minStock?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-class MongoStorage implements IStorage {
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface InvoiceItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  items: InvoiceItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  issueDate: string;
+  dueDate: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class InMemoryStorage {
+  private products: Map<string, Product> = new Map();
+  private customers: Map<string, Customer> = new Map();
+  private invoices: Map<string, Invoice> = new Map();
+  private users: Map<string, User> = new Map();
+  private invoiceCounter = 1;
+
+  constructor() {
+    this.initializeMockData();
+  }
+
+  private initializeMockData() {
+    // Mock products
+    const mockProducts: Product[] = [
+      {
+        id: '1',
+        name: 'Wireless Headphones',
+        description: 'High-quality wireless headphones',
+        price: 99.99,
+        sku: 'WH001',
+        category: 'Electronics',
+        stock: 25,
+        minStock: 10,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: '2',
+        name: 'Laptop Stand',
+        description: 'Adjustable laptop stand',
+        price: 49.99,
+        sku: 'LS002',
+        category: 'Accessories',
+        stock: 15,
+        minStock: 5,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    const mockCustomers: Customer[] = [
+      {
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        phone: '555-0123',
+        address: '123 Main St, City, State',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: '2',
+        name: 'Jane Smith',
+        email: 'jane@example.com',
+        phone: '555-0456',
+        address: '456 Oak Ave, City, State',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    const mockInvoices: Invoice[] = [
+      {
+        id: '1',
+        invoiceNumber: 'INV-0001',
+        customerId: '1',
+        customerName: 'John Doe',
+        items: [
+          {
+            id: '1',
+            productId: '1',
+            productName: 'Wireless Headphones',
+            quantity: 2,
+            price: 99.99,
+            total: 199.98
+          }
+        ],
+        subtotal: 199.98,
+        tax: 20.00,
+        total: 219.98,
+        status: 'paid',
+        issueDate: '2024-01-15',
+        dueDate: '2024-02-15',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    mockProducts.forEach(p => this.products.set(p.id, p));
+    mockCustomers.forEach(c => this.customers.set(c.id, c));
+    mockInvoices.forEach(i => this.invoices.set(i.id, i));
+  }
+
+  private generateId(): string {
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  }
+
   // User operations
-  async getUser(id: string): Promise<IUser | undefined> {
-    try {
-      const user = await UserModel.findById(id);
-      return user || undefined;
-    } catch (error) {
-      console.error('Error getting user:', error);
-      return undefined;
-    }
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
   }
 
-  async upsertUser(user: Partial<IUser>): Promise<IUser> {
-    try {
-      const userId = user.id || user._id;
-      const existingUser = await UserModel.findById(userId);
-      if (existingUser) {
-        Object.assign(existingUser, user, { updatedAt: new Date() });
-        await existingUser.save();
-        return existingUser;
-      } else {
-        const newUser = new UserModel({
-          _id: userId,
-          ...user,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-        await newUser.save();
-        return newUser;
-      }
-    } catch (error) {
-      console.error('Error upserting user:', error);
-      throw error;
-    }
-  }
+  async upsertUser(user: Partial<User>): Promise<User> {
+    const userId = user.id || this.generateId();
+    const existingUser = this.users.get(userId);
 
-  // Product operations
-  async getProducts(page = 1, limit = 10, search = ""): Promise<{ products: ProductWithStockSchema[]; total: number }> {
-    try {
-      const offset = (page - 1) * limit;
-      const searchQuery = search ? { name: { $regex: search, $options: 'i' } } : {};
-      
-      const [products, total] = await Promise.all([
-        ProductModel.find(searchQuery)
-          .sort({ createdAt: -1 })
-          .skip(offset)
-          .limit(limit)
-          .lean(),
-        ProductModel.countDocuments(searchQuery)
-      ]);
+    const userData: User = {
+      id: userId,
+      name: user.name || existingUser?.name || 'Unknown User',
+      email: user.email || existingUser?.email || 'unknown@example.com',
+      createdAt: existingUser?.createdAt || new Date(),
+      updatedAt: new Date()
+    };
 
-      const productsWithStock = products.map(product => ({
-        ...product,
-        stockStatus: product.stock <= 0 ? "out_of_stock" as const :
-                    product.stock <= product.minStock ? "low_stock" as const :
-                    "in_stock" as const
-      }));
-
-      return { products: productsWithStock, total };
-    } catch (error) {
-      console.error('Error getting products:', error);
-      throw error;
-    }
-  }
-
-  async getProduct(id: string): Promise<IProduct | undefined> {
-    try {
-      const product = await ProductModel.findById(id);
-      return product || undefined;
-    } catch (error) {
-      console.error('Error getting product:', error);
-      return undefined;
-    }
-  }
-
-  async createProduct(product: InsertProductSchema): Promise<IProduct> {
-    try {
-      const newProduct = new ProductModel({
-        ...product,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newProduct.save();
-      return newProduct;
-    } catch (error) {
-      console.error('Error creating product:', error);
-      throw error;
-    }
-  }
-
-  async updateProduct(id: string, product: Partial<InsertProductSchema>): Promise<IProduct | undefined> {
-    try {
-      const updatedProduct = await ProductModel.findByIdAndUpdate(
-        id,
-        { ...product, updatedAt: new Date() },
-        { new: true }
-      );
-      return updatedProduct || undefined;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      return undefined;
-    }
-  }
-
-  async deleteProduct(id: string): Promise<boolean> {
-    try {
-      const result = await ProductModel.findByIdAndDelete(id);
-      return !!result;
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      return false;
-    }
-  }
-
-  async updateStock(productId: string, quantity: number): Promise<boolean> {
-    try {
-      const product = await ProductModel.findById(productId);
-      if (!product) return false;
-      
-      product.stock += quantity;
-      product.updatedAt = new Date();
-      await product.save();
-      return true;
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      return false;
-    }
-  }
-
-  async getLowStockProducts(): Promise<ProductWithStockSchema[]> {
-    try {
-      const products = await ProductModel.find({
-        $expr: { $lte: ["$stock", "$minStock"] }
-      }).lean();
-
-      return products.map(product => ({
-        ...product,
-        stockStatus: product.stock <= 0 ? "out_of_stock" as const : "low_stock" as const
-      }));
-    } catch (error) {
-      console.error('Error getting low stock products:', error);
-      return [];
-    }
-  }
-
-  // Customer operations
-  async getCustomers(page = 1, limit = 10, search = ""): Promise<{ customers: ICustomer[]; total: number }> {
-    try {
-      const offset = (page - 1) * limit;
-      const searchQuery = search ? { name: { $regex: search, $options: 'i' } } : {};
-      
-      const [customers, total] = await Promise.all([
-        CustomerModel.find(searchQuery)
-          .sort({ createdAt: -1 })
-          .skip(offset)
-          .limit(limit)
-          .lean(),
-        CustomerModel.countDocuments(searchQuery)
-      ]);
-
-      return { customers, total };
-    } catch (error) {
-      console.error('Error getting customers:', error);
-      throw error;
-    }
-  }
-
-  async getCustomer(id: string): Promise<ICustomer | undefined> {
-    try {
-      const customer = await CustomerModel.findById(id);
-      return customer || undefined;
-    } catch (error) {
-      console.error('Error getting customer:', error);
-      return undefined;
-    }
-  }
-
-  async createCustomer(customer: InsertCustomerSchema): Promise<ICustomer> {
-    try {
-      const newCustomer = new CustomerModel({
-        ...customer,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newCustomer.save();
-      return newCustomer;
-    } catch (error) {
-      console.error('Error creating customer:', error);
-      throw error;
-    }
-  }
-
-  async updateCustomer(id: string, customer: Partial<InsertCustomerSchema>): Promise<ICustomer | undefined> {
-    try {
-      const updatedCustomer = await CustomerModel.findByIdAndUpdate(
-        id,
-        { ...customer, updatedAt: new Date() },
-        { new: true }
-      );
-      return updatedCustomer || undefined;
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      return undefined;
-    }
-  }
-
-  async deleteCustomer(id: string): Promise<boolean> {
-    try {
-      const result = await CustomerModel.findByIdAndDelete(id);
-      return !!result;
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      return false;
-    }
-  }
-
-  // Invoice operations
-  async getInvoices(page = 1, limit = 10, search = "", status = ""): Promise<{ invoices: any[]; total: number }> {
-    try {
-      const offset = (page - 1) * limit;
-      let searchQuery: any = {};
-      
-      if (search) {
-        searchQuery.invoiceNumber = { $regex: search, $options: 'i' };
-      }
-      
-      if (status) {
-        searchQuery.status = status;
-      }
-      
-      const [invoices, total] = await Promise.all([
-        InvoiceModel.find(searchQuery)
-          .populate('customerId', 'name email')
-          .populate('items.productId', 'name sku')
-          .sort({ createdAt: -1 })
-          .skip(offset)
-          .limit(limit)
-          .lean(),
-        InvoiceModel.countDocuments(searchQuery)
-      ]);
-
-      return { invoices, total };
-    } catch (error) {
-      console.error('Error getting invoices:', error);
-      throw error;
-    }
-  }
-
-  async getInvoice(id: string): Promise<any | undefined> {
-    try {
-      const invoice = await InvoiceModel.findById(id)
-        .populate('customerId')
-        .populate('items.productId');
-      return invoice || undefined;
-    } catch (error) {
-      console.error('Error getting invoice:', error);
-      return undefined;
-    }
-  }
-
-  async createInvoice(invoice: InsertInvoiceSchema, items?: any[]): Promise<IInvoice> {
-    try {
-      const newInvoice = new InvoiceModel({
-        ...invoice,
-        customerId: new Types.ObjectId(invoice.customerId),
-        items: (items || invoice.items || []).map(item => ({
-          ...item,
-          productId: new Types.ObjectId(item.productId)
-        })),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newInvoice.save();
-      return newInvoice;
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-      throw error;
-    }
-  }
-
-  async getNextInvoiceNumber(): Promise<string> {
-    try {
-      const lastInvoice = await InvoiceModel.findOne()
-        .sort({ createdAt: -1 })
-        .select('invoiceNumber');
-      
-      if (!lastInvoice) {
-        return 'INV-0001';
-      }
-      
-      const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-')[1]) || 0;
-      return `INV-${String(lastNumber + 1).padStart(4, '0')}`;
-    } catch (error) {
-      console.error('Error getting next invoice number:', error);
-      return 'INV-0001';
-    }
-  }
-
-  async updateInvoiceStatus(id: string, status: string): Promise<boolean> {
-    try {
-      const result = await InvoiceModel.findByIdAndUpdate(
-        id,
-        { status, updatedAt: new Date() },
-        { new: true }
-      );
-      return !!result;
-    } catch (error) {
-      console.error('Error updating invoice status:', error);
-      return false;
-    }
-  }
-
-  async updateInvoice(id: string, invoice: Partial<InsertInvoiceSchema>): Promise<IInvoice | undefined> {
-    try {
-      const updateData = { ...invoice, updatedAt: new Date() };
-      if (invoice.customerId) {
-        updateData.customerId = new Types.ObjectId(invoice.customerId);
-      }
-      if (invoice.items) {
-        updateData.items = invoice.items.map(item => ({
-          ...item,
-          productId: new Types.ObjectId(item.productId)
-        }));
-      }
-
-      const updatedInvoice = await InvoiceModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      );
-      return updatedInvoice || undefined;
-    } catch (error) {
-      console.error('Error updating invoice:', error);
-      return undefined;
-    }
-  }
-
-  async deleteInvoice(id: string): Promise<boolean> {
-    try {
-      const result = await InvoiceModel.findByIdAndDelete(id);
-      return !!result;
-    } catch (error) {
-      console.error('Error deleting invoice:', error);
-      return false;
-    }
+    this.users.set(userId, userData);
+    return userData;
   }
 
   async getDashboardStats(): Promise<any> {
-    try {
-      const [
-        totalProducts,
-        totalCustomers,
-        totalInvoices,
-        totalRevenue,
-        lowStockCount
-      ] = await Promise.all([
-        ProductModel.countDocuments(),
-        CustomerModel.countDocuments(),
-        InvoiceModel.countDocuments(),
-        InvoiceModel.aggregate([
-          { $match: { status: 'paid' } },
-          { $group: { _id: null, total: { $sum: '$total' } } }
-        ]),
-        ProductModel.countDocuments({
-          $expr: { $lte: ["$stock", "$minStock"] }
-        })
-      ]);
+    const totalProducts = this.products.size;
+    const totalCustomers = this.customers.size;
+    const totalInvoices = this.invoices.size;
 
-      return {
-        totalProducts,
-        totalCustomers,
-        totalInvoices,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        lowStockCount
-      };
-    } catch (error) {
-      console.error('Error getting dashboard stats:', error);
-      throw error;
+    let totalRevenue = 0;
+    let pendingInvoices = 0;
+
+    for (const invoice of this.invoices.values()) {
+      totalRevenue += invoice.total;
+      if (invoice.status === 'pending') pendingInvoices++;
     }
+
+    return {
+      totalProducts,
+      totalCustomers,
+      totalInvoices,
+      totalRevenue,
+      pendingInvoices,
+      lowStockProducts: Array.from(this.products.values()).filter(p => p.stock <= (p.minStock || 0)).length
+    };
+  }
+
+  // Product operations
+  async getProducts(page = 1, limit = 10, search = ""): Promise<{ products: Product[]; total: number }> {
+    let products = Array.from(this.products.values());
+
+    if (search) {
+      products = products.filter(p => 
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    const total = products.length;
+    const offset = (page - 1) * limit;
+    products = products.slice(offset, offset + limit);
+
+    return { products, total };
+  }
+
+  async getProduct(id: string): Promise<Product | undefined> {
+    return this.products.get(id);
+  }
+
+  async createProduct(product: any): Promise<Product> {
+    const id = this.generateId();
+    const newProduct: Product = {
+      ...product,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.products.set(id, newProduct);
+    return newProduct;
+  }
+
+  async updateProduct(id: string, product: Partial<any>): Promise<Product | undefined> {
+    const existing = this.products.get(id);
+    if (!existing) return undefined;
+
+    const updated = { ...existing, ...product, updatedAt: new Date() };
+    this.products.set(id, updated);
+    return updated;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    return this.products.delete(id);
+  }
+
+  async updateStock(productId: string, quantity: number): Promise<boolean> {
+    const product = this.products.get(productId);
+    if (!product) return false;
+
+    product.stock += quantity;
+    product.updatedAt = new Date();
+    return true;
+  }
+
+  async getLowStockProducts(): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(p => p.stock <= (p.minStock || 0));
+  }
+
+  // Customer operations
+  async getCustomers(page = 1, limit = 10, search = ""): Promise<{ customers: Customer[]; total: number }> {
+    let customers = Array.from(this.customers.values());
+
+    if (search) {
+      customers = customers.filter(c => 
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.email.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    const total = customers.length;
+    const offset = (page - 1) * limit;
+    customers = customers.slice(offset, offset + limit);
+
+    return { customers, total };
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async createCustomer(customer: any): Promise<Customer> {
+    const id = this.generateId();
+    const newCustomer: Customer = {
+      ...customer,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.customers.set(id, newCustomer);
+    return newCustomer;
+  }
+
+  async updateCustomer(id: string, customer: Partial<any>): Promise<Customer | undefined> {
+    const existing = this.customers.get(id);
+    if (!existing) return undefined;
+
+    const updated = { ...existing, ...customer, updatedAt: new Date() };
+    this.customers.set(id, updated);
+    return updated;
+  }
+
+  async deleteCustomer(id: string): Promise<boolean> {
+    return this.customers.delete(id);
+  }
+
+  // Invoice operations
+  async getInvoices(page = 1, limit = 10, search = "", status = ""): Promise<{ invoices: Invoice[]; total: number }> {
+    let invoices = Array.from(this.invoices.values());
+
+    if (search) {
+      invoices = invoices.filter(i => 
+        i.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
+        i.customerName.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    if (status) {
+      invoices = invoices.filter(i => i.status === status);
+    }
+
+    const total = invoices.length;
+    const offset = (page - 1) * limit;
+    invoices = invoices.slice(offset, offset + limit);
+
+    return { invoices, total };
+  }
+
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    return this.invoices.get(id);
+  }
+
+  async createInvoice(invoice: any, items?: any[]): Promise<Invoice> {
+    const id = this.generateId();
+    const invoiceNumber = `INV-${String(this.invoiceCounter++).padStart(4, '0')}`;
+
+    const customer = this.customers.get(invoice.customerId);
+    const customerName = customer?.name || 'Unknown Customer';
+
+    const newInvoice: Invoice = {
+      ...invoice,
+      id,
+      invoiceNumber,
+      customerName,
+      items: items || invoice.items || [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.invoices.set(id, newInvoice);
+    return newInvoice;
+  }
+
+  async getNextInvoiceNumber(): Promise<string> {
+    return `INV-${String(this.invoiceCounter).padStart(4, '0')}`;
+  }
+
+  async updateInvoiceStatus(id: string, status: string): Promise<boolean> {
+    const invoice = this.invoices.get(id);
+    if (!invoice) return false;
+
+    invoice.status = status as any;
+    invoice.updatedAt = new Date();
+    return true;
+  }
+
+  async updateInvoice(id: string, invoice: Partial<any>): Promise<Invoice | undefined> {
+    const existing = this.invoices.get(id);
+    if (!existing) return undefined;
+
+    const updated = { ...existing, ...invoice, updatedAt: new Date() };
+    this.invoices.set(id, updated);
+    return updated;
+  }
+
+  async deleteInvoice(id: string): Promise<boolean> {
+    return this.invoices.delete(id);
   }
 }
 
-export const storage = new MongoStorage();
+export const storage = new InMemoryStorage();

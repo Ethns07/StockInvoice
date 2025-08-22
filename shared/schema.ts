@@ -1,212 +1,103 @@
-import { Schema, model, Document, Types } from 'mongoose';
 import { z } from 'zod';
 
-// Session storage interface (required for Replit Auth)
-export interface ISession extends Document {
-  _id: string;
-  sess: any;
-  expire: Date;
-}
-
-const sessionSchema = new Schema<ISession>({
-  _id: { type: String, required: true },
-  sess: { type: Schema.Types.Mixed, required: true },
-  expire: { type: Date, required: true, index: true }
-});
-
-export const Session = model<ISession>('Session', sessionSchema);
-
-// User storage interface (required for Replit Auth)
-export interface IUser extends Document {
-  _id: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  profileImageUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const userSchema = new Schema<IUser>({
-  _id: { type: String, required: true },
-  email: { type: String, unique: true, sparse: true },
-  firstName: String,
-  lastName: String,
-  profileImageUrl: String,
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-export const User = model<IUser>('User', userSchema);
-
-// Product interface
-export interface IProduct extends Document {
-  name: string;
-  sku: string;
-  description?: string;
-  category?: string;
-  price: number;
-  stock: number;
-  minStock: number;
-  imageUrl?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const productSchema = new Schema<IProduct>({
-  name: { type: String, required: true, maxlength: 255 },
-  sku: { type: String, required: true, unique: true, maxlength: 100 },
-  description: String,
-  category: { type: String, maxlength: 100 },
-  price: { type: Number, required: true },
-  stock: { type: Number, required: true, default: 0 },
-  minStock: { type: Number, default: 10 },
-  imageUrl: String,
-  isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-export const Product = model<IProduct>('Product', productSchema);
-
-// Customer interface
-export interface ICustomer extends Document {
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const customerSchema = new Schema<ICustomer>({
-  name: { type: String, required: true, maxlength: 255 },
-  email: { type: String, maxlength: 255 },
-  phone: { type: String, maxlength: 50 },
-  address: String,
-  city: { type: String, maxlength: 100 },
-  state: { type: String, maxlength: 100 },
-  zipCode: { type: String, maxlength: 20 },
-  country: { type: String, maxlength: 100 },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-export const Customer = model<ICustomer>('Customer', customerSchema);
-
-// Invoice Item interface
-export interface IInvoiceItem {
-  productId: Types.ObjectId;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-}
-
-const invoiceItemSchema = new Schema<IInvoiceItem>({
-  productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-  quantity: { type: Number, required: true },
-  unitPrice: { type: Number, required: true },
-  total: { type: Number, required: true }
-});
-
-// Invoice interface
-export interface IInvoice extends Document {
-  invoiceNumber: string;
-  customerId: Types.ObjectId;
-  userId: string;
-  issueDate: Date;
-  dueDate?: Date;
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
-  notes?: string;
-  items: IInvoiceItem[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const invoiceSchema = new Schema<IInvoice>({
-  invoiceNumber: { type: String, required: true, unique: true, maxlength: 50 },
-  customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
-  userId: { type: String, required: true },
-  issueDate: { type: Date, default: Date.now },
-  dueDate: Date,
-  subtotal: { type: Number, required: true },
-  tax: { type: Number, default: 0 },
-  total: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'paid', 'overdue', 'cancelled'], default: 'pending' },
-  notes: String,
-  items: [invoiceItemSchema],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-export const Invoice = model<IInvoice>('Invoice', invoiceSchema);
-
-// Zod schemas for validation
+// Product schemas
 export const insertProductSchema = z.object({
-  name: z.string().max(255),
-  sku: z.string().max(100),
+  name: z.string().min(1, "Product name is required"),
   description: z.string().optional(),
-  category: z.string().max(100).optional(),
+  price: z.number().min(0, "Price must be non-negative"),
+  sku: z.string().min(1, "SKU is required"),
+  category: z.string().optional(),
+  stock: z.number().int().min(0, "Stock must be non-negative"),
+  minStock: z.number().int().min(0, "Min stock must be non-negative").optional(),
+});
+
+export const selectProductSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
   price: z.number(),
-  stock: z.number().default(0),
-  minStock: z.number().default(10),
-  imageUrl: z.string().optional(),
-  isActive: z.boolean().default(true)
+  sku: z.string(),
+  category: z.string().nullable(),
+  stock: z.number(),
+  minStock: z.number().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
 });
 
+// Customer schemas
 export const insertCustomerSchema = z.object({
-  name: z.string().max(255),
-  email: z.string().max(255).optional(),
-  phone: z.string().max(50).optional(),
+  name: z.string().min(1, "Customer name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
   address: z.string().optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(100).optional(),
-  zipCode: z.string().max(20).optional(),
-  country: z.string().max(100).optional()
 });
 
+export const selectCustomerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  phone: z.string().nullable(),
+  address: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+// Invoice schemas
 export const insertInvoiceItemSchema = z.object({
   productId: z.string(),
-  quantity: z.number(),
-  unitPrice: z.number(),
-  total: z.number()
+  productName: z.string(),
+  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+  price: z.number().min(0, "Price must be non-negative"),
+  total: z.number().min(0, "Total must be non-negative"),
 });
 
 export const insertInvoiceSchema = z.object({
-  invoiceNumber: z.string().max(50),
-  customerId: z.string(),
-  userId: z.string(),
-  issueDate: z.date().optional(),
-  dueDate: z.date().optional(),
-  subtotal: z.number(),
-  tax: z.number().default(0),
-  total: z.number(),
+  customerId: z.string().min(1, "Customer is required"),
+  items: z.array(insertInvoiceItemSchema).min(1, "At least one item is required"),
+  subtotal: z.number().min(0, "Subtotal must be non-negative"),
+  tax: z.number().min(0, "Tax must be non-negative"),
+  total: z.number().min(0, "Total must be non-negative"),
   status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
-  notes: z.string().optional(),
-  items: z.array(insertInvoiceItemSchema)
+  issueDate: z.string(),
+  dueDate: z.string(),
+});
+
+export const selectInvoiceSchema = z.object({
+  id: z.string(),
+  invoiceNumber: z.string(),
+  customerId: z.string(),
+  customerName: z.string(),
+  items: z.array(insertInvoiceItemSchema),
+  subtotal: z.number(),
+  tax: z.number(),
+  total: z.number(),
+  status: z.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  issueDate: z.string(),
+  dueDate: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+// User schemas
+export const insertUserSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+});
+
+export const selectUserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
 });
 
 // Type exports
-export type UpsertUser = Partial<IUser>;
-export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
-export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
-export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
-
-// Extended types with relations
-export type InvoiceWithCustomer = IInvoice & {
-  customer: ICustomer;
-  items: (IInvoiceItem & { product: IProduct })[];
-};
-
-export type ProductWithStock = IProduct & {
-  stockStatus: "in_stock" | "low_stock" | "out_of_stock";
-};
+export type InsertProductSchema = z.infer<typeof insertProductSchema>;
+export type SelectProductSchema = z.infer<typeof selectProductSchema>;
+export type InsertCustomerSchema = z.infer<typeof insertCustomerSchema>;
+export type SelectCustomerSchema = z.infer<typeof selectCustomerSchema>;
+export type InsertInvoiceSchema = z.infer<typeof insertInvoiceSchema>;
+export type SelectInvoiceSchema = z.infer<typeof selectInvoiceSchema>;
+export type InsertUserSchema = z.infer<typeof insertUserSchema>;
+export type SelectUserSchema = z.infer<typeof selectUserSchema>;
