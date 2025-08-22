@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   Package, 
   AlertTriangle, 
@@ -34,285 +31,246 @@ export default function Dashboard() {
     select: (data) => data?.invoices?.slice(0, 3) || [],
   });
 
-  const getStockStatusColor = (stockStatus: string) => {
+  const getStockStatusClass = (stockStatus: string) => {
     switch (stockStatus) {
-      case "in_stock": return "bg-green-100 text-green-800";
-      case "low_stock": return "bg-yellow-100 text-yellow-800";
-      case "out_of_stock": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "in_stock": return "status-in-stock";
+      case "low_stock": return "status-low-stock";
+      case "out_of_stock": return "status-out-of-stock";
+      default: return "bg-light text-dark";
     }
   };
 
-  const getInvoiceStatusColor = (status: string) => {
+  const getInvoiceStatusClass = (status: string) => {
     switch (status) {
-      case "paid": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "overdue": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "paid": return "status-paid";
+      case "pending": return "status-pending";
+      case "overdue": return "status-overdue";
+      case "cancelled": return "status-cancelled";
+      default: return "bg-light text-dark";
     }
   };
+
+  if (statsLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <Card data-testid="stat-total-products">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Products</p>
-                <p className="text-3xl font-bold text-gray-900" data-testid="total-products-count">
-                  {statsLoading ? "..." : stats?.totalProducts || 0}
-                </p>
-                <p className="text-sm text-green-600 flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  12% from last month
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Package className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="stat-low-stock">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
-                <p className="text-3xl font-bold text-yellow-600" data-testid="low-stock-count">
-                  {statsLoading ? "..." : stats?.lowStockItems || 0}
-                </p>
-                <p className="text-sm text-red-600 flex items-center mt-1">
-                  <AlertTriangle className="h-4 w-4 mr-1" />
-                  Needs attention
-                </p>
-              </div>
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-yellow-600" />
+    <>
+      <div className="container-fluid">
+        {/* Stats Cards */}
+        <div className="row mb-4">
+          <div className="col-md-3 mb-3">
+            <div className="card inventory-card stats-card h-100">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <p className="text-muted mb-1">Total Products</p>
+                    <h3 className="mb-0">{stats?.totalProducts || 0}</h3>
+                    <small className="text-success">
+                      <TrendingUp size={14} className="me-1" />
+                      +12% from last month
+                    </small>
+                  </div>
+                  <div className="bg-primary text-white rounded p-2">
+                    <Package size={24} />
+                  </div>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card data-testid="stat-total-revenue">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900" data-testid="total-revenue-amount">
-                  ${statsLoading ? "..." : parseFloat(stats?.totalRevenue || "0").toLocaleString()}
-                </p>
-                <p className="text-sm text-green-600 flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  8% from last month
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <DollarSign className="h-6 w-6 text-green-600" />
+          <div className="col-md-3 mb-3">
+            <div className="card inventory-card stats-card warning h-100">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <p className="text-muted mb-1">Low Stock Items</p>
+                    <h3 className="mb-0">{stats?.lowStockItems || 0}</h3>
+                    <small className="text-warning">
+                      <AlertTriangle size={14} className="me-1" />
+                      Needs attention
+                    </small>
+                  </div>
+                  <div className="bg-warning text-white rounded p-2">
+                    <AlertTriangle size={24} />
+                  </div>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card data-testid="stat-pending-invoices">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Invoices</p>
-                <p className="text-3xl font-bold text-gray-900" data-testid="pending-invoices-count">
-                  {statsLoading ? "..." : stats?.pendingInvoices || 0}
-                </p>
-                <p className="text-sm text-gray-600 flex items-center mt-1">
-                  <Clock className="h-4 w-4 mr-1" />
-                  Awaiting payment
-                </p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <FileText className="h-6 w-6 text-red-600" />
+          <div className="col-md-3 mb-3">
+            <div className="card inventory-card stats-card success h-100">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <p className="text-muted mb-1">Total Revenue</p>
+                    <h3 className="mb-0">${stats?.totalRevenue || 0}</h3>
+                    <small className="text-success">
+                      <TrendingUp size={14} className="me-1" />
+                      +8% from last month
+                    </small>
+                  </div>
+                  <div className="bg-success text-white rounded p-2">
+                    <DollarSign size={24} />
+                  </div>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Recent Products */}
-        <div className="xl:col-span-2">
-          <Card data-testid="recent-products-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Recent Products</CardTitle>
-                <Button variant="ghost" size="sm" data-testid="view-all-products">
-                  View all
-                </Button>
+          <div className="col-md-3 mb-3">
+            <div className="card inventory-card stats-card h-100">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <p className="text-muted mb-1">Pending Invoices</p>
+                    <h3 className="mb-0">{stats?.pendingInvoices || 0}</h3>
+                    <small className="text-warning">
+                      <Clock size={14} className="me-1" />
+                      Awaiting payment
+                    </small>
+                  </div>
+                  <div className="bg-info text-white rounded p-2">
+                    <FileText size={24} />
+                  </div>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {productsLoading ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-4 text-center text-gray-500">Loading...</td>
-                      </tr>
-                    ) : recentProducts?.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-4 text-center text-gray-500" data-testid="no-products">
-                          No products found
-                        </td>
-                      </tr>
-                    ) : (
-                      recentProducts?.map((product: any) => (
-                        <tr key={product.id} data-testid={`product-row-${product.id}`}>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900" data-testid={`product-name-${product.id}`}>
-                              {product.name}
-                            </div>
-                            <div className="text-sm text-gray-500" data-testid={`product-category-${product.id}`}>
-                              {product.category}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" data-testid={`product-sku-${product.id}`}>
-                            {product.sku}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" data-testid={`product-stock-${product.id}`}>
-                            {product.stock}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" data-testid={`product-price-${product.id}`}>
-                            ${parseFloat(product.price).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <Badge 
-                              className={getStockStatusColor(product.stockStatus)}
-                              data-testid={`product-status-${product.id}`}
-                            >
-                              {product.stockStatus === "in_stock" ? "In Stock" : 
-                               product.stockStatus === "low_stock" ? "Low Stock" : "Out of Stock"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Actions & Recent Invoices */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card data-testid="quick-actions-card">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button 
-                  className="w-full justify-start bg-blue-600 hover:bg-blue-700"
-                  onClick={() => setProductModalOpen(true)}
-                  data-testid="add-product-button"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add New Product
-                </Button>
-                
-                <Button 
-                  className="w-full justify-start bg-green-600 hover:bg-green-700"
-                  onClick={() => setInvoiceModalOpen(true)}
-                  data-testid="create-invoice-button"
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Create Invoice
-                </Button>
-                
-                <Button 
-                  className="w-full justify-start bg-gray-600 hover:bg-gray-700"
-                  data-testid="generate-report-button"
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Generate Report
-                </Button>
-                
-                <Button 
-                  className="w-full justify-start bg-yellow-600 hover:bg-yellow-700"
-                  data-testid="view-low-stock-button"
-                >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  View Low Stock
-                </Button>
+        {/* Quick Actions */}
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card inventory-card">
+              <div className="card-body">
+                <h5 className="card-title d-flex align-items-center mb-3">
+                  <BarChart3 className="me-2" />
+                  Quick Actions
+                </h5>
+                <div className="d-flex gap-2 flex-wrap">
+                  <button 
+                    onClick={() => setProductModalOpen(true)}
+                    className="btn btn-inventory-primary"
+                  >
+                    <Plus size={16} className="me-2" />
+                    Add Product
+                  </button>
+                  <button 
+                    onClick={() => setInvoiceModalOpen(true)}
+                    className="btn btn-inventory-secondary"
+                  >
+                    <Plus size={16} className="me-2" />
+                    Create Invoice
+                  </button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </div>
 
-          {/* Recent Invoices */}
-          <Card data-testid="recent-invoices-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Recent Invoices</CardTitle>
-                <Button variant="ghost" size="sm" data-testid="view-all-invoices">
-                  View all
-                </Button>
+        {/* Recent Products and Invoices */}
+        <div className="row">
+          <div className="col-lg-8 mb-4">
+            <div className="card inventory-card h-100">
+              <div className="card-header bg-white border-bottom">
+                <h5 className="mb-0">Recent Products</h5>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {invoicesLoading ? (
-                  <div className="text-center text-gray-500">Loading...</div>
-                ) : recentInvoices?.length === 0 ? (
-                  <div className="text-center text-gray-500" data-testid="no-invoices">
-                    No invoices found
+              <div className="card-body">
+                {productsLoading ? (
+                  <div className="text-center">
+                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
                   </div>
                 ) : (
-                  recentInvoices?.map((invoice: any) => (
-                    <div 
-                      key={invoice.id} 
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      data-testid={`invoice-item-${invoice.id}`}
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-gray-900" data-testid={`invoice-number-${invoice.id}`}>
-                          {invoice.invoiceNumber}
-                        </p>
-                        <p className="text-xs text-gray-500" data-testid={`invoice-customer-${invoice.id}`}>
-                          {invoice.customer?.name}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900" data-testid={`invoice-total-${invoice.id}`}>
-                          ${parseFloat(invoice.total).toFixed(2)}
-                        </p>
-                        <Badge 
-                          className={getInvoiceStatusColor(invoice.status)}
-                          data-testid={`invoice-status-${invoice.id}`}
-                        >
-                          {invoice.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
+                  <div className="table-responsive">
+                    <table className="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>SKU</th>
+                          <th>Price</th>
+                          <th>Stock</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentProducts?.map((product: any) => (
+                          <tr key={product.id}>
+                            <td className="fw-medium">{product.name}</td>
+                            <td className="text-muted">{product.sku}</td>
+                            <td>${product.price}</td>
+                            <td>{product.quantity}</td>
+                            <td>
+                              <span className={`status-badge ${getStockStatusClass(product.stockStatus)}`}>
+                                {product.stockStatus?.replace('_', ' ')}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          <div className="col-lg-4 mb-4">
+            <div className="card inventory-card h-100">
+              <div className="card-header bg-white border-bottom">
+                <h5 className="mb-0">Recent Invoices</h5>
+              </div>
+              <div className="card-body">
+                {invoicesLoading ? (
+                  <div className="text-center">
+                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {recentInvoices?.map((invoice: any) => (
+                      <div key={invoice.id} className="border rounded p-3">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <span className="fw-medium">#{invoice.invoiceNumber}</span>
+                          <span className={`status-badge ${getInvoiceStatusClass(invoice.status)}`}>
+                            {invoice.status}
+                          </span>
+                        </div>
+                        <div className="text-muted small mb-1">{invoice.customerName}</div>
+                        <div className="fw-bold text-success">${invoice.total}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Modals */}
-      <ProductModal open={productModalOpen} onOpenChange={setProductModalOpen} />
-      <InvoiceModal open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen} />
-    </div>
+      {productModalOpen && (
+        <ProductModal 
+          isOpen={productModalOpen} 
+          onClose={() => setProductModalOpen(false)} 
+        />
+      )}
+
+      {invoiceModalOpen && (
+        <InvoiceModal 
+          isOpen={invoiceModalOpen} 
+          onClose={() => setInvoiceModalOpen(false)} 
+        />
+      )}
+    </>
   );
 }

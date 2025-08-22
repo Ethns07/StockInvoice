@@ -1,17 +1,11 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { 
   BarChart3, 
   Package, 
-  Warehouse, 
   FileText, 
   Users, 
-  Settings, 
   LogOut, 
   Search,
   Bell
@@ -22,129 +16,108 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth();
   const [location] = useLocation();
-  const { user } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: BarChart3 },
     { name: "Products", href: "/products", icon: Package },
-    { name: "Inventory", href: "/products", icon: Warehouse },
-    { name: "Invoices", href: "/invoices", icon: FileText },
     { name: "Customers", href: "/customers", icon: Users },
+    { name: "Invoices", href: "/invoices", icon: FileText },
   ];
 
-  const isActive = (href: string) => {
-    if (href === "/") return location === "/";
-    return location.startsWith(href);
+  const isActivePath = (path: string) => {
+    if (path === "/" && location === "/") return true;
+    if (path !== "/" && location.startsWith(path)) return true;
+    return false;
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="d-flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-sm border-r border-gray-200 fixed left-0 top-0 h-full z-10">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-xl font-semibold text-gray-900" data-testid="app-title">InventoryPro</h1>
-          <p className="text-sm text-gray-500 mt-1">Management System</p>
+      <nav className="sidebar">
+        <div className="p-3 border-bottom">
+          <div className="d-flex align-items-center">
+            <Package className="me-2" size={24} style={{ color: "#3498db" }} />
+            <span className="fw-bold fs-5">InventoryPro</span>
+          </div>
         </div>
-        
-        <nav className="mt-6">
-          <div className="px-3">
+
+        <div className="sidebar-nav">
+          <ul className="nav flex-column">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                <Link 
-                  key={item.name} 
-                  href={item.href}
-                  className={`flex items-center px-3 py-2 mt-1 text-sm font-medium rounded-lg transition-colors ${
-                    isActive(item.href)
-                      ? "text-white bg-blue-600"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                  data-testid={`nav-${item.name.toLowerCase()}`}
-                >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
+                <li className="nav-item" key={item.name}>
+                  <Link href={item.href}>
+                    <a className={`nav-link ${isActivePath(item.href) ? 'active' : ''}`}>
+                      <Icon size={20} />
+                      {item.name}
+                    </a>
+                  </Link>
+                </li>
               );
             })}
+          </ul>
+        </div>
+
+        <div className="mt-auto p-3 border-top" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+          <div className="d-flex align-items-center mb-2">
+            <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                 style={{ width: '40px', height: '40px', fontSize: '1.2rem', color: 'white' }}>
+              {user?.name?.charAt(0) || 'U'}
+            </div>
+            <div>
+              <div className="fw-semibold">{user?.name || 'User'}</div>
+              <small className="text-muted">Administrator</small>
+            </div>
           </div>
-          
-          <div className="px-3 mt-8">
-            <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</h3>
-            <Link 
-              href="/settings" 
-              className="flex items-center px-3 py-2 mt-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              data-testid="nav-settings"
-            >
-              <Settings className="mr-3 h-5 w-5" />
-              Settings
-            </Link>
-            <a 
-              href="/api/logout" 
-              className="flex items-center px-3 py-2 mt-1 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              data-testid="nav-logout"
-            >
-              <LogOut className="mr-3 h-5 w-5" />
-              Logout
-            </a>
-          </div>
-        </nav>
-      </aside>
+          <button 
+            onClick={logout} 
+            className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center"
+          >
+            <LogOut size={16} className="me-2" />
+            Sign Out
+          </button>
+        </div>
+      </nav>
 
       {/* Main Content */}
-      <main className="ml-64 flex-1">
-        {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-xl font-semibold text-gray-900" data-testid="page-title">
-                {navigation.find(nav => isActive(nav.href))?.name || "Dashboard"}
-              </h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-800" data-testid="status-badge">
-                Live
-              </Badge>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search products, invoices..."
-                  className="w-80 pl-10"
-                  data-testid="search-input"
-                />
-              </div>
-              
-              {/* User Profile */}
-              <div className="flex items-center space-x-3">
-                <Button variant="ghost" size="icon" className="relative" data-testid="notifications-button">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-                </Button>
-                
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8" data-testid="user-avatar">
-                    <AvatarImage src={user?.profileImageUrl || undefined} />
-                    <AvatarFallback>
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-sm">
-                    <p className="font-medium text-gray-900" data-testid="user-name">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <p className="text-gray-500" data-testid="user-role">Administrator</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <main className="main-content flex-grow-1">
+        {/* Top Navigation */}
+        <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+          <div className="d-flex align-items-center">
+            <h1 className="h4 mb-0 me-4">
+              {navigation.find(item => isActivePath(item.href))?.name || 'Dashboard'}
+            </h1>
           </div>
-        </header>
+
+          <div className="d-flex align-items-center">
+            <div className="position-relative me-3">
+              <input 
+                type="search" 
+                className="form-control form-control-sm" 
+                placeholder="Search..." 
+                style={{ paddingLeft: '2.5rem', width: '250px' }}
+              />
+              <Search 
+                className="position-absolute top-50 translate-middle-y ms-2" 
+                size={16} 
+                style={{ left: '0.5rem', color: '#6c757d' }}
+              />
+            </div>
+
+            <button className="btn btn-outline-secondary btn-sm position-relative me-3">
+              <Bell size={16} />
+              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                3
+              </span>
+            </button>
+          </div>
+        </div>
 
         {/* Page Content */}
-        <div className="p-6">
+        <div>
           {children}
         </div>
       </main>
