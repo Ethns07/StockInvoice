@@ -1,276 +1,161 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Package, 
-  AlertTriangle, 
-  DollarSign, 
-  FileText, 
-  Plus, 
-  BarChart3, 
-  TrendingUp,
-  Clock
-} from "lucide-react";
-import ProductModal from "@/components/ProductModal";
-import InvoiceModal from "@/components/InvoiceModal";
+import React from 'react';
+import { FiBox, FiUsers, FiFileText, FiDollarSign, FiAlert } from 'react-icons/fi';
+import { mockProducts, mockCustomers, mockInvoices } from '../lib/mockData';
 
 export default function Dashboard() {
-  const [productModalOpen, setProductModalOpen] = useState(false);
-  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const totalProducts = mockProducts.length;
+  const totalCustomers = mockCustomers.length;
+  const totalInvoices = mockInvoices.length;
+  const totalRevenue = mockInvoices
+    .filter(invoice => invoice.status === 'paid')
+    .reduce((sum, invoice) => sum + invoice.total, 0);
+  const lowStockProducts = mockProducts.filter(p => p.stockStatus === 'low_stock' || p.stockStatus === 'out_of_stock');
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/dashboard/stats"],
-  });
-
-  const { data: recentProducts, isLoading: productsLoading } = useQuery({
-    queryKey: ["/api/products"],
-    select: (data) => data?.products?.slice(0, 5) || [],
-  });
-
-  const { data: recentInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["/api/invoices"],
-    select: (data) => data?.invoices?.slice(0, 3) || [],
-  });
-
-  const getStockStatusClass = (stockStatus: string) => {
-    switch (stockStatus) {
-      case "in_stock": return "status-in-stock";
-      case "low_stock": return "status-low-stock";
-      case "out_of_stock": return "status-out-of-stock";
-      default: return "bg-light text-dark";
+  const stats = [
+    {
+      title: 'Total Products',
+      value: totalProducts,
+      icon: FiBox,
+      color: 'primary'
+    },
+    {
+      title: 'Total Customers',
+      value: totalCustomers,
+      icon: FiUsers,
+      color: 'success'
+    },
+    {
+      title: 'Total Invoices',
+      value: totalInvoices,
+      icon: FiFileText,
+      color: 'info'
+    },
+    {
+      title: 'Revenue',
+      value: `$${totalRevenue.toFixed(2)}`,
+      icon: FiDollarSign,
+      color: 'warning'
     }
-  };
-
-  const getInvoiceStatusClass = (status: string) => {
-    switch (status) {
-      case "paid": return "status-paid";
-      case "pending": return "status-pending";
-      case "overdue": return "status-overdue";
-      case "cancelled": return "status-cancelled";
-      default: return "bg-light text-dark";
-    }
-  };
-
-  if (statsLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
+  ];
 
   return (
-    <>
-      <div className="container-fluid">
-        {/* Stats Cards */}
-        <div className="row mb-4">
-          <div className="col-md-3 mb-3">
-            <div className="card inventory-card stats-card h-100">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <p className="text-muted mb-1">Total Products</p>
-                    <h3 className="mb-0">{stats?.totalProducts || 0}</h3>
-                    <small className="text-success">
-                      <TrendingUp size={14} className="me-1" />
-                      +12% from last month
-                    </small>
-                  </div>
-                  <div className="bg-primary text-white rounded p-2">
-                    <Package size={24} />
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h1 className="h2 mb-0">Dashboard</h1>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="row g-4 mb-5">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <div key={index} className="col-md-3">
+              <div className={`card border-0 shadow-sm h-100 border-start border-${stat.color}`} style={{ borderLeftWidth: '4px !important' }}>
+                <div className="card-body">
+                  <div className="d-flex align-items-center">
+                    <div className={`bg-${stat.color} bg-opacity-10 rounded-circle p-3 me-3`}>
+                      <Icon size={24} className={`text-${stat.color}`} />
+                    </div>
+                    <div>
+                      <h5 className="card-title mb-0">{stat.value}</h5>
+                      <p className="card-text text-muted small mb-0">{stat.title}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          );
+        })}
+      </div>
 
-          <div className="col-md-3 mb-3">
-            <div className="card inventory-card stats-card warning h-100">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <p className="text-muted mb-1">Low Stock Items</p>
-                    <h3 className="mb-0">{stats?.lowStockItems || 0}</h3>
-                    <small className="text-warning">
-                      <AlertTriangle size={14} className="me-1" />
-                      Needs attention
-                    </small>
-                  </div>
-                  <div className="bg-warning text-white rounded p-2">
-                    <AlertTriangle size={24} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-3 mb-3">
-            <div className="card inventory-card stats-card success h-100">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <p className="text-muted mb-1">Total Revenue</p>
-                    <h3 className="mb-0">${stats?.totalRevenue || 0}</h3>
-                    <small className="text-success">
-                      <TrendingUp size={14} className="me-1" />
-                      +8% from last month
-                    </small>
-                  </div>
-                  <div className="bg-success text-white rounded p-2">
-                    <DollarSign size={24} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-3 mb-3">
-            <div className="card inventory-card stats-card h-100">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <p className="text-muted mb-1">Pending Invoices</p>
-                    <h3 className="mb-0">{stats?.pendingInvoices || 0}</h3>
-                    <small className="text-warning">
-                      <Clock size={14} className="me-1" />
-                      Awaiting payment
-                    </small>
-                  </div>
-                  <div className="bg-info text-white rounded p-2">
-                    <FileText size={24} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="row mb-4">
+      {/* Low Stock Alert */}
+      {lowStockProducts.length > 0 && (
+        <div className="row mb-5">
           <div className="col-12">
-            <div className="card inventory-card">
-              <div className="card-body">
-                <h5 className="card-title d-flex align-items-center mb-3">
-                  <BarChart3 className="me-2" />
-                  Quick Actions
-                </h5>
-                <div className="d-flex gap-2 flex-wrap">
-                  <button 
-                    onClick={() => setProductModalOpen(true)}
-                    className="btn btn-inventory-primary"
-                  >
-                    <Plus size={16} className="me-2" />
-                    Add Product
-                  </button>
-                  <button 
-                    onClick={() => setInvoiceModalOpen(true)}
-                    className="btn btn-inventory-secondary"
-                  >
-                    <Plus size={16} className="me-2" />
-                    Create Invoice
-                  </button>
-                </div>
+            <div className="alert alert-warning d-flex align-items-center" role="alert">
+              <FiAlert size={20} className="me-2" />
+              <div>
+                <strong>Low Stock Alert:</strong> {lowStockProducts.length} product(s) are running low or out of stock.
               </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Recent Products and Invoices */}
-        <div className="row">
-          <div className="col-lg-8 mb-4">
-            <div className="card inventory-card h-100">
-              <div className="card-header bg-white border-bottom">
-                <h5 className="mb-0">Recent Products</h5>
-              </div>
-              <div className="card-body">
-                {productsLoading ? (
-                  <div className="text-center">
-                    <div className="spinner-border spinner-border-sm text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>SKU</th>
-                          <th>Price</th>
-                          <th>Stock</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentProducts?.map((product: any) => (
-                          <tr key={product.id}>
-                            <td className="fw-medium">{product.name}</td>
-                            <td className="text-muted">{product.sku}</td>
-                            <td>${product.price}</td>
-                            <td>{product.quantity}</td>
-                            <td>
-                              <span className={`status-badge ${getStockStatusClass(product.stockStatus)}`}>
-                                {product.stockStatus?.replace('_', ' ')}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+      {/* Recent Activity */}
+      <div className="row">
+        <div className="col-md-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-bottom">
+              <h5 className="card-title mb-0">Recent Invoices</h5>
             </div>
-          </div>
-
-          <div className="col-lg-4 mb-4">
-            <div className="card inventory-card h-100">
-              <div className="card-header bg-white border-bottom">
-                <h5 className="mb-0">Recent Invoices</h5>
-              </div>
-              <div className="card-body">
-                {invoicesLoading ? (
-                  <div className="text-center">
-                    <div className="spinner-border spinner-border-sm text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="d-flex flex-column gap-3">
-                    {recentInvoices?.map((invoice: any) => (
-                      <div key={invoice.id} className="border rounded p-3">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <span className="fw-medium">#{invoice.invoiceNumber}</span>
-                          <span className={`status-badge ${getInvoiceStatusClass(invoice.status)}`}>
+            <div className="card-body">
+              {mockInvoices.length === 0 ? (
+                <p className="text-muted text-center py-4">No invoices yet</p>
+              ) : (
+                <div className="list-group list-group-flush">
+                  {mockInvoices.slice(0, 5).map((invoice) => (
+                    <div key={invoice.id} className="list-group-item border-0 px-0">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 className="mb-1">{invoice.invoiceNumber}</h6>
+                          <p className="mb-0 text-muted small">{invoice.customerName}</p>
+                        </div>
+                        <div className="text-end">
+                          <span className="fw-bold">${invoice.total.toFixed(2)}</span>
+                          <br />
+                          <span className={`badge bg-${
+                            invoice.status === 'paid' ? 'success' :
+                            invoice.status === 'pending' ? 'warning' :
+                            invoice.status === 'overdue' ? 'danger' : 'secondary'
+                          }`}>
                             {invoice.status}
                           </span>
                         </div>
-                        <div className="text-muted small mb-1">{invoice.customerName}</div>
-                        <div className="fw-bold text-success">${invoice.total}</div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-bottom">
+              <h5 className="card-title mb-0">Low Stock Products</h5>
+            </div>
+            <div className="card-body">
+              {lowStockProducts.length === 0 ? (
+                <p className="text-muted text-center py-4">All products are well stocked</p>
+              ) : (
+                <div className="list-group list-group-flush">
+                  {lowStockProducts.map((product) => (
+                    <div key={product.id} className="list-group-item border-0 px-0">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 className="mb-1">{product.name}</h6>
+                          <p className="mb-0 text-muted small">{product.sku}</p>
+                        </div>
+                        <div className="text-end">
+                          <span className="fw-bold">{product.stock}</span>
+                          <br />
+                          <span className={`badge bg-${
+                            product.stockStatus === 'out_of_stock' ? 'danger' : 'warning'
+                          }`}>
+                            {product.stockStatus.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {productModalOpen && (
-        <ProductModal 
-          isOpen={productModalOpen} 
-          onClose={() => setProductModalOpen(false)} 
-        />
-      )}
-
-      {invoiceModalOpen && (
-        <InvoiceModal 
-          isOpen={invoiceModalOpen} 
-          onClose={() => setInvoiceModalOpen(false)} 
-        />
-      )}
-    </>
+    </div>
   );
 }

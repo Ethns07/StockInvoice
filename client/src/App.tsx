@@ -1,60 +1,29 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import Layout from "@/components/Layout";
-import Landing from "@/pages/Landing";
-import Dashboard from "@/pages/Dashboard";
-import Products from "@/pages/Products";
-import Customers from "@/pages/Customers";
-import Invoices from "@/pages/Invoices";
-import NotFound from "@/pages/not-found";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './index.css';
 
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import Customers from './pages/Customers';
+import Invoices from './pages/Invoices';
 
-  return (
-    <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/">
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </Route>
-          <Route path="/products">
-            <Layout>
-              <Products />
-            </Layout>
-          </Route>
-          <Route path="/customers">
-            <Layout>
-              <Customers />
-            </Layout>
-          </Route>
-          <Route path="/invoices">
-            <Layout>
-              <Invoices />
-            </Layout>
-          </Route>
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
+const queryClient = new QueryClient();
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <Router>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/invoices" element={<Invoices />} />
+          </Routes>
+        </Layout>
+      </Router>
     </QueryClientProvider>
   );
 }
