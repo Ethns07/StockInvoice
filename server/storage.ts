@@ -61,13 +61,15 @@ class MongoStorage implements IStorage {
 
   async upsertUser(user: Partial<IUser>): Promise<IUser> {
     try {
-      const existingUser = await UserModel.findById(user._id);
+      const userId = user.id || user._id;
+      const existingUser = await UserModel.findById(userId);
       if (existingUser) {
         Object.assign(existingUser, user, { updatedAt: new Date() });
         await existingUser.save();
         return existingUser;
       } else {
         const newUser = new UserModel({
+          _id: userId,
           ...user,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -262,10 +264,18 @@ class MongoStorage implements IStorage {
   }
 
   // Invoice operations
-  async getInvoices(page = 1, limit = 10, search = ""): Promise<{ invoices: any[]; total: number }> {
+  async getInvoices(page = 1, limit = 10, search = "", status = ""): Promise<{ invoices: any[]; total: number }> {
     try {
       const offset = (page - 1) * limit;
-      const searchQuery = search ? { invoiceNumber: { $regex: search, $options: 'i' } } : {};
+      let searchQuery: any = {};
+      
+      if (search) {
+        searchQuery.invoiceNumber = { $regex: search, $options: 'i' };
+      }
+      
+      if (status) {
+        searchQuery.status = status;
+      }
       
       const [invoices, total] = await Promise.all([
         InvoiceModel.find(searchQuery)
@@ -297,12 +307,12 @@ class MongoStorage implements IStorage {
     }
   }
 
-  async createInvoice(invoice: InsertInvoiceSchema): Promise<IInvoice> {
+  async createInvoice(invoice: InsertInvoiceSchema, items?: any[]): Promise<IInvoice> {
     try {
       const newInvoice = new InvoiceModel({
         ...invoice,
         customerId: new Types.ObjectId(invoice.customerId),
-        items: invoice.items.map(item => ({
+        items: (items || invoice.items || []).map(item => ({
           ...item,
           productId: new Types.ObjectId(item.productId)
         })),
@@ -314,6 +324,38 @@ class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error creating invoice:', error);
       throw error;
+    }
+  }
+
+  async getNextInvoiceNumber(): Promise<string> {
+    try {
+      const lastInvoice = await InvoiceModel.findOne()
+        .sort({ createdAt: -1 })
+        .select('invoiceNumber');
+      
+      if (!lastInvoice) {
+        return 'INV-0001';
+      }
+      
+      const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-')[1]) || 0;
+      return `INV-${String(lastNumber + 1).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error getting next invoice number:', error);
+      return 'INV-0001';
+    }
+  }
+
+  async updateInvoiceStatus(id: string, status: string): Promise<boolean> {
+    try {
+      const result = await InvoiceModel.findByIdAndUpdate(
+        id,
+        { status, updatedAt: new Date() },
+        { new: true }
+      );
+      return !!result;
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      return false;
     }
   }
 
