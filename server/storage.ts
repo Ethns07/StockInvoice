@@ -20,6 +20,20 @@ import {
 import { db } from "./db";
 import { eq, desc, asc, ilike, and, sql, count } from "drizzle-orm";
 
+import {
+  Product as ProductModel,
+  Customer as CustomerModel,
+  Invoice as InvoiceModel,
+  IProduct,
+  ICustomer,
+  IInvoice,
+  InsertProduct as InsertProductSchema,
+  InsertCustomer as InsertCustomerSchema,
+  InsertInvoice as InsertInvoiceSchema,
+  ProductWithStock as ProductWithStockSchema,
+} from '@shared/schema';
+import { Types } from 'mongoose';
+
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
@@ -58,7 +72,7 @@ export interface IStorage {
   }>;
 }
 
-export class DatabaseStorage implements IStorage {
+class DatabaseStorage implements IStorage {
   // User operations (required for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -83,8 +97,8 @@ export class DatabaseStorage implements IStorage {
   // Product operations
   async getProducts(page = 1, limit = 10, search = ""): Promise<{ products: ProductWithStock[]; total: number }> {
     const offset = (page - 1) * limit;
-    
-    const whereClause = search 
+
+    const whereClause = search
       ? ilike(products.name, `%${search}%`)
       : undefined;
 
@@ -104,8 +118,8 @@ export class DatabaseStorage implements IStorage {
 
     const productsWithStock = productsResult.map(product => ({
       ...product,
-      stockStatus: product.stock <= 0 ? "out_of_stock" as const 
-        : product.stock <= (product.minStock || 10) ? "low_stock" as const 
+      stockStatus: product.stock <= 0 ? "out_of_stock" as const
+        : product.stock <= (product.minStock || 10) ? "low_stock" as const
         : "in_stock" as const
     }));
 
@@ -142,7 +156,7 @@ export class DatabaseStorage implements IStorage {
   async updateStock(productId: number, quantity: number): Promise<boolean> {
     const result = await db
       .update(products)
-      .set({ 
+      .set({
         stock: sql`${products.stock} + ${quantity}`,
         updatedAt: new Date()
       })
@@ -166,8 +180,8 @@ export class DatabaseStorage implements IStorage {
   // Customer operations
   async getCustomers(page = 1, limit = 10, search = ""): Promise<{ customers: Customer[]; total: number }> {
     const offset = (page - 1) * limit;
-    
-    const whereClause = search 
+
+    const whereClause = search
       ? ilike(customers.name, `%${search}%`)
       : undefined;
 
@@ -218,7 +232,7 @@ export class DatabaseStorage implements IStorage {
   // Invoice operations
   async getInvoices(page = 1, limit = 10, search = "", status = ""): Promise<{ invoices: InvoiceWithCustomer[]; total: number }> {
     const offset = (page - 1) * limit;
-    
+
     const whereConditions = [];
     if (search) {
       whereConditions.push(ilike(invoices.invoiceNumber, `%${search}%`));
@@ -308,12 +322,12 @@ export class DatabaseStorage implements IStorage {
 
   async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<InvoiceWithCustomer> {
     const [newInvoice] = await db.insert(invoices).values(invoice).returning();
-    
+
     const invoiceItemsWithInvoiceId = items.map(item => ({
       ...item,
       invoiceId: newInvoice.id,
     }));
-    
+
     await db.insert(invoiceItems).values(invoiceItemsWithInvoiceId);
 
     // Update stock for each product
@@ -336,7 +350,7 @@ export class DatabaseStorage implements IStorage {
   async deleteInvoice(id: number): Promise<boolean> {
     // Delete invoice items first
     await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));
-    
+
     // Delete invoice
     const result = await db.delete(invoices).where(eq(invoices.id, id));
     return result.rowCount! > 0;

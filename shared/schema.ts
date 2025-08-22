@@ -1,184 +1,213 @@
-import { sql } from "drizzle-orm";
-import {
-  index,
-  jsonb,
-  pgTable,
-  timestamp,
-  varchar,
-  text,
-  decimal,
-  integer,
-  boolean,
-  serial,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
 
-// Session storage table (required for Replit Auth)
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
+import { Schema, model, Document, Types } from 'mongoose';
+import { z } from 'zod';
 
-// User storage table (required for Replit Auth)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+// Session storage interface (required for Replit Auth)
+export interface ISession extends Document {
+  _id: string;
+  sess: any;
+  expire: Date;
+}
+
+const sessionSchema = new Schema<ISession>({
+  _id: { type: String, required: true },
+  sess: { type: Schema.Types.Mixed, required: true },
+  expire: { type: Date, required: true, index: true }
 });
 
-// Products table
-export const products = pgTable("products", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  sku: varchar("sku", { length: 100 }).notNull().unique(),
-  description: text("description"),
-  category: varchar("category", { length: 100 }),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").default(10),
-  imageUrl: varchar("image_url"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const Session = model<ISession>('Session', sessionSchema);
+
+// User storage interface (required for Replit Auth)
+export interface IUser extends Document {
+  _id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema = new Schema<IUser>({
+  _id: { type: String, required: true },
+  email: { type: String, unique: true, sparse: true },
+  firstName: String,
+  lastName: String,
+  profileImageUrl: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
-// Customers table
-export const customers = pgTable("customers", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  state: varchar("state", { length: 100 }),
-  zipCode: varchar("zip_code", { length: 20 }),
-  country: varchar("country", { length: 100 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const User = model<IUser>('User', userSchema);
+
+// Product interface
+export interface IProduct extends Document {
+  name: string;
+  sku: string;
+  description?: string;
+  category?: string;
+  price: number;
+  stock: number;
+  minStock: number;
+  imageUrl?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const productSchema = new Schema<IProduct>({
+  name: { type: String, required: true, maxlength: 255 },
+  sku: { type: String, required: true, unique: true, maxlength: 100 },
+  description: String,
+  category: { type: String, maxlength: 100 },
+  price: { type: Number, required: true },
+  stock: { type: Number, required: true, default: 0 },
+  minStock: { type: Number, default: 10 },
+  imageUrl: String,
+  isActive: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
-// Invoices table
-export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull().unique(),
-  customerId: integer("customer_id").notNull(),
-  userId: varchar("user_id").notNull(),
-  issueDate: timestamp("issue_date").defaultNow(),
-  dueDate: timestamp("due_date"),
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  tax: decimal("tax", { precision: 10, scale: 2 }).default("0"),
-  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
-  status: varchar("status", { length: 20 }).default("pending"), // pending, paid, overdue, cancelled
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const Product = model<IProduct>('Product', productSchema);
+
+// Customer interface
+export interface ICustomer extends Document {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const customerSchema = new Schema<ICustomer>({
+  name: { type: String, required: true, maxlength: 255 },
+  email: { type: String, maxlength: 255 },
+  phone: { type: String, maxlength: 50 },
+  address: String,
+  city: { type: String, maxlength: 100 },
+  state: { type: String, maxlength: 100 },
+  zipCode: { type: String, maxlength: 20 },
+  country: { type: String, maxlength: 100 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
-// Invoice items table
-export const invoiceItems = pgTable("invoice_items", {
-  id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id").notNull(),
-  productId: integer("product_id").notNull(),
-  quantity: integer("quantity").notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+export const Customer = model<ICustomer>('Customer', customerSchema);
+
+// Invoice Item interface
+export interface IInvoiceItem {
+  productId: Types.ObjectId;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+const invoiceItemSchema = new Schema<IInvoiceItem>({
+  productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+  quantity: { type: Number, required: true },
+  unitPrice: { type: Number, required: true },
+  total: { type: Number, required: true }
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  invoices: many(invoices),
-}));
+// Invoice interface
+export interface IInvoice extends Document {
+  invoiceNumber: string;
+  customerId: Types.ObjectId;
+  userId: string;
+  issueDate: Date;
+  dueDate?: Date;
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  notes?: string;
+  items: IInvoiceItem[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const productsRelations = relations(products, ({ many }) => ({
-  invoiceItems: many(invoiceItems),
-}));
-
-export const customersRelations = relations(customers, ({ many }) => ({
-  invoices: many(invoices),
-}));
-
-export const invoicesRelations = relations(invoices, ({ one, many }) => ({
-  customer: one(customers, {
-    fields: [invoices.customerId],
-    references: [customers.id],
-  }),
-  user: one(users, {
-    fields: [invoices.userId],
-    references: [users.id],
-  }),
-  items: many(invoiceItems),
-}));
-
-export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
-  invoice: one(invoices, {
-    fields: [invoiceItems.invoiceId],
-    references: [invoices.id],
-  }),
-  product: one(products, {
-    fields: [invoiceItems.productId],
-    references: [products.id],
-  }),
-}));
-
-// Types for Replit Auth
-export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
-
-// Product schemas and types
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+const invoiceSchema = new Schema<IInvoice>({
+  invoiceNumber: { type: String, required: true, unique: true, maxlength: 50 },
+  customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
+  userId: { type: String, required: true },
+  issueDate: { type: Date, default: Date.now },
+  dueDate: Date,
+  subtotal: { type: Number, required: true },
+  tax: { type: Number, default: 0 },
+  total: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'paid', 'overdue', 'cancelled'], default: 'pending' },
+  notes: String,
+  items: [invoiceItemSchema],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
+export const Invoice = model<IInvoice>('Invoice', invoiceSchema);
+
+// Zod schemas for validation
+export const insertProductSchema = z.object({
+  name: z.string().max(255),
+  sku: z.string().max(100),
+  description: z.string().optional(),
+  category: z.string().max(100).optional(),
+  price: z.number(),
+  stock: z.number().default(0),
+  minStock: z.number().default(10),
+  imageUrl: z.string().optional(),
+  isActive: z.boolean().default(true)
+});
+
+export const insertCustomerSchema = z.object({
+  name: z.string().max(255),
+  email: z.string().max(255).optional(),
+  phone: z.string().max(50).optional(),
+  address: z.string().optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  zipCode: z.string().max(20).optional(),
+  country: z.string().max(100).optional()
+});
+
+export const insertInvoiceItemSchema = z.object({
+  productId: z.string(),
+  quantity: z.number(),
+  unitPrice: z.number(),
+  total: z.number()
+});
+
+export const insertInvoiceSchema = z.object({
+  invoiceNumber: z.string().max(50),
+  customerId: z.string(),
+  userId: z.string(),
+  issueDate: z.date().optional(),
+  dueDate: z.date().optional(),
+  subtotal: z.number(),
+  tax: z.number().default(0),
+  total: z.number(),
+  status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
+  notes: z.string().optional(),
+  items: z.array(insertInvoiceItemSchema)
+});
+
+// Type exports
+export type UpsertUser = Partial<IUser>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type Product = typeof products.$inferSelect;
-
-// Customer schemas and types
-export const insertCustomerSchema = createInsertSchema(customers).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
-export type Customer = typeof customers.$inferSelect;
-
-// Invoice schemas and types
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
-  id: true,
-  createdAt: true,
-});
-
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
-export type Invoice = typeof invoices.$inferSelect;
-export type InvoiceItem = typeof invoiceItems.$inferSelect;
 
 // Extended types with relations
-export type InvoiceWithCustomer = Invoice & {
-  customer: Customer;
-  items: (InvoiceItem & { product: Product })[];
+export type InvoiceWithCustomer = IInvoice & {
+  customer: ICustomer;
+  items: (IInvoiceItem & { product: IProduct })[];
 };
 
-export type ProductWithStock = Product & {
+export type ProductWithStock = IProduct & {
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
 };
