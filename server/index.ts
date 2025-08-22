@@ -40,7 +40,7 @@ app.use((req, res, next) => {
   const { createServer } = await import("http");
   const server = createServer(app);
 
-  log("Auth setup complete (mock mode)");
+  log("Frontend-only server starting...");
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
