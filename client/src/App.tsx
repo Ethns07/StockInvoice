@@ -1,54 +1,24 @@
-
-import React from 'react';
-import { Router, Route, Switch } from 'wouter';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import Customers from './pages/Customers';
-import Invoices from './pages/Invoices';
-import Landing from './pages/Landing';
-import NotFound from './pages/not-found';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import Products from "./pages/Products";
+import Customers from "./pages/Customers";
+import Invoices from "./pages/Invoices";
+import Landing from "./pages/Landing";
+import NotFound from "./pages/not-found";
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <Switch>
-          <Route path="/" component={Landing} />
-          <Route path="/dashboard">
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </Route>
-          <Route path="/products">
-            <Layout>
-              <Products />
-            </Layout>
-          </Route>
-          <Route path="/customers">
-            <Layout>
-              <Customers />
-            </Layout>
-          </Route>
-          <Route path="/invoices">
-            <Layout>
-              <Invoices />
-            </Layout>
-          </Route>
-          <Route component={NotFound} />
-        </Switch>
-      </Router>
-    </QueryClientProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+        <Route path="/products" element={<Layout><Products /></Layout>} />
+        <Route path="/customers" element={<Layout><Customers /></Layout>} />
+        <Route path="/invoices" element={<Layout><Invoices /></Layout>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
   );
 }
 

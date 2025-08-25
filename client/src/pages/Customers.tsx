@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { mockCustomers } from '@/lib/mockData';
-import { Plus, Search, Users, Mail, Phone, MapPin } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { mockCustomers } from "../lib/mockData";
+import { Plus, Search, Users, Mail, Phone, MapPin } from "lucide-react";
 
 interface Customer {
   id: string;
@@ -17,11 +22,12 @@ interface Customer {
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -72,7 +78,9 @@ export default function Customers() {
                 {customer.address && (
                   <div className="flex items-start text-sm">
                     <MapPin className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">{customer.address}</span>
+                    <span className="text-muted-foreground">
+                      {customer.address}
+                    </span>
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground">
@@ -89,7 +97,9 @@ export default function Customers() {
           <Users className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-2 text-sm font-semibold">No customers found</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first customer.'}
+            {searchTerm
+              ? "Try adjusting your search terms."
+              : "Get started by adding your first customer."}
           </p>
         </div>
       )}
