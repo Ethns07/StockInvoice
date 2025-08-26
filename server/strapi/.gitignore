@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+.cache/
+build/
+dist/
+
+# Environment variables
+.env
+.env.*
+.strapi-updater.json
+
+# Database and uploads
+.tmp/
+public/uploads/
+
+# IDE and OS specific files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log
