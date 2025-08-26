@@ -131,7 +131,7 @@ export default function Landing() {
             operations.
           </p>
           <a
-            href="/customers"
+            href="/register"
             className="btn btn-light btn-lg rounded-pill px-4"
           >
             Start Your Journey
