@@ -1,57 +1,78 @@
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, DollarSign, FileText, Plus, Search } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Skeleton } from "../components/ui/skeleton";
+import api from "../lib/api";
+import { Invoice } from "../types";
 
-import React, { useState } from 'react';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { mockInvoices } from '../lib/mockData';
-import { Plus, Search, FileText, Calendar, DollarSign } from 'lucide-react';
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  customerId: string;
-  customerName: string;
-  items: Array<{
-    id: string;
-    productId: string;
-    productName: string;
-    quantity: number;
-    price: number;
-    total: number;
-  }>;
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
-  issueDate: string;
-  dueDate: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const fetchInvoices = async (): Promise<Invoice[]> => {
+  const { data } = await api.get("/invoices?populate=*");
+  return data.data;
+};
 
 export default function Invoices() {
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const {
+    data: invoices,
+    isLoading,
+    isError,
+  } = useQuery<Invoice[]>({
+    queryKey: ["invoices"],
+    queryFn: fetchInvoices,
+  });
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
+  const filteredInvoices = invoices?.filter((invoice) => {
+    if (!invoice) return false;
+    const customerName = invoice.customer?.name || "";
+    const matchesSearch =
+      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" || invoice.invoiceStatus === statusFilter;
+    console.log(statusFilter, invoice.invoiceStatus, matchesStatus);
     return matchesSearch && matchesStatus;
   });
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'paid': return 'default';
-      case 'pending': return 'secondary';
-      case 'overdue': return 'destructive';
-      case 'cancelled': return 'outline';
-      default: return 'secondary';
+      case "paid":
+        return "default";
+      case "pending":
+        return "secondary";
+      case "overdue":
+        return "destructive";
+      case "cancelled":
+        return "outline";
+      default:
+        return "secondary";
     }
   };
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-500">
+        Failed to load invoices. Please try again.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -67,7 +88,6 @@ export default function Invoices() {
           Create Invoice
         </Button>
       </div>
-
       <div className="flex items-center space-x-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -91,65 +111,84 @@ export default function Invoices() {
           </SelectContent>
         </Select>
       </div>
-
       <div className="grid gap-4">
-        {filteredInvoices.map((invoice) => (
-          <Card key={invoice.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{invoice.invoiceNumber}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{invoice.customerName}</p>
-                </div>
-                <Badge variant={getStatusVariant(invoice.status)}>
-                  {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex items-center text-sm">
-                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div>Issued: {invoice.issueDate}</div>
-                    <div className="text-muted-foreground">Due: {invoice.dueDate}</div>
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-1/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : filteredInvoices && filteredInvoices.length > 0 ? (
+          filteredInvoices.map((invoice) => {
+            const customerName = invoice.customer?.name || "N/A";
+            return (
+              <Card key={invoice.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {invoice.invoiceNumber}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {customerName}
+                      </p>
+                    </div>
+                    <Badge variant={getStatusVariant(invoice.invoiceStatus)}>
+                      {invoice.invoiceStatus.charAt(0).toUpperCase() +
+                        invoice.invoiceStatus.slice(1)}
+                    </Badge>
                   </div>
-                </div>
-                <div className="flex items-center text-sm">
-                  <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div>{invoice.items.length} item{invoice.items.length !== 1 ? 's' : ''}</div>
-                    <div className="text-muted-foreground">
-                      {invoice.items.map(item => item.productName).join(', ')}
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="flex items-center text-sm">
+                      <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div>
+                          Issued:{" "}
+                          {new Date(invoice.issueDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div>
+                          {invoice.items?.length || 0} item
+                          {invoice.items?.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="font-semibold">
+                          ${(invoice.total || 0).toFixed(2)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center text-sm">
-                  <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="font-semibold">${invoice.total.toFixed(2)}</div>
-                    <div className="text-muted-foreground">
-                      Subtotal: ${invoice.subtotal.toFixed(2)} + Tax: ${invoice.tax.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <div className="text-center py-8">
+            <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-2 text-sm font-semibold">No invoices found</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search terms or filters."
+                : "Get started by creating your first invoice in the Strapi admin panel."}
+            </p>
+          </div>
+        )}
       </div>
-
-      {filteredInvoices.length === 0 && (
-        <div className="text-center py-8">
-          <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-2 text-sm font-semibold">No invoices found</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {searchTerm || statusFilter !== 'all' 
-              ? 'Try adjusting your search terms or filters.' 
-              : 'Get started by creating your first invoice.'}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
