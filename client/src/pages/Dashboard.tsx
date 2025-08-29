@@ -1,127 +1,129 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { mockDashboardStats, mockProducts } from "../lib/mockData";
+import React from "react";
 import {
   Package,
   Users,
   FileText,
   DollarSign,
-  AlertTriangle,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 
-export default function Dashboard() {
-  const stats = mockDashboardStats;
-  const lowStockProducts = mockProducts.filter(
-    (product) => product.stock <= (product.minStock || 0)
-  );
+interface Product {
+  id: number;
+  name: string;
+  stock: number;
+}
 
+interface Stats {
+  totalProducts: number;
+  totalCustomers: number;
+  totalInvoices: number;
+  totalRevenue: number;
+  pendingInvoices: number;
+  lowStockProducts: number;
+}
+
+interface DashboardProps {
+  stats: Stats;
+  lowStockProducts: Product[];
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ stats, lowStockProducts }) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-primary tracking-tight">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">
           Overview of your business metrics and key performance indicators.
         </p>
       </div>
 
+      {/* Top Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        {/* Total Products */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">
               Total Products
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProducts}</div>
-          </CardContent>
-        </Card>
+            </h3>
+            <Package className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">{stats.totalProducts}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        {/* Total Customers */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">
               Total Customers
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCustomers}</div>
-          </CardContent>
-        </Card>
+            </h3>
+            <Users className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        {/* Total Invoices */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">
               Total Invoices
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalInvoices}</div>
-          </CardContent>
-        </Card>
+            </h3>
+            <FileText className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">{stats.totalInvoices}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${stats.totalRevenue.toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Total Revenue */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">Total Revenue</h3>
+            <DollarSign className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">
+            ${stats.totalRevenue.toFixed(2)}
+          </div>
+        </div>
       </div>
 
+      {/* Bottom Stats */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        {/* Pending Invoices */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">
               Pending Invoices
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
-          </CardContent>
-        </Card>
+            </h3>
+            <Clock className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        {/* Low Stock Products */}
+        <div className="bg-white p-4 rounded-xl shadow border">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-sm font-medium text-gray-600">
               Low Stock Products
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.lowStockProducts}</div>
-            {lowStockProducts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Items running low:
-                </p>
-                {lowStockProducts.map((product) => (
-                  <div key={product.id} className="text-sm">
-                    <span className="font-medium">{product.name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      - {product.stock} left
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </h3>
+            <AlertTriangle className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="text-2xl font-bold">{stats.lowStockProducts}</div>
+
+          {lowStockProducts.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm text-gray-500">Items running low:</p>
+              {lowStockProducts.map((product) => (
+                <div key={product.id} className="text-sm">
+                  <span className="font-medium">{product.name}</span>
+                  <span className="text-gray-500"> - {product.stock} left</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;
