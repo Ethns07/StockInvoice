@@ -1,17 +1,31 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockDashboardStats, mockProducts } from '@/lib/mockData';
-import { Package, Users, FileText, DollarSign, AlertTriangle, Clock } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { mockDashboardStats, mockProducts } from "../lib/mockData";
+import {
+  Package,
+  Users,
+  FileText,
+  DollarSign,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 
 export default function Dashboard() {
   const stats = mockDashboardStats;
-  const lowStockProducts = mockProducts.filter(product => product.stock <= (product.minStock || 0));
+  const lowStockProducts = mockProducts.filter(
+    (product) => product.stock <= (product.minStock || 0)
+  );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-primary tracking-tight">
+          Dashboard
+        </h1>
         <p className="text-muted-foreground">
           Overview of your business metrics and key performance indicators.
         </p>
@@ -20,7 +34,9 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Products
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -30,7 +46,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Customers
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -40,7 +58,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Invoices
+            </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -54,7 +74,9 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ${stats.totalRevenue.toFixed(2)}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -62,7 +84,9 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Invoices
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -72,18 +96,25 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Products</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Low Stock Products
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.lowStockProducts}</div>
             {lowStockProducts.length > 0 && (
               <div className="mt-4 space-y-2">
-                <p className="text-sm text-muted-foreground">Items running low:</p>
+                <p className="text-sm text-muted-foreground">
+                  Items running low:
+                </p>
                 {lowStockProducts.map((product) => (
                   <div key={product.id} className="text-sm">
                     <span className="font-medium">{product.name}</span>
-                    <span className="text-muted-foreground"> - {product.stock} left</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      - {product.stock} left
+                    </span>
                   </div>
                 ))}
               </div>
