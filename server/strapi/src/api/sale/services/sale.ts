@@ -1,5 +1,0 @@
-/**
- * sale service
- */
-
-export default () => ({});
